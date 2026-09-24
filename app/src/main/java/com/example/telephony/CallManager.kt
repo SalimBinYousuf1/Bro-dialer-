@@ -166,4 +166,29 @@ object CallManager {
     fun stopDtmfTone() {
         activeCall?.stopDtmfTone()
     }
+
+    fun startVideoCall(context: Context, number: String) {
+        try {
+            // Check if active telecom call has videoCall controller
+            val videoCall = activeCall?.videoCall
+            if (videoCall != null) {
+                // Request video session
+                videoCall.sendSessionModifyRequest(null)
+                return
+            }
+
+            // Fallback to system video call intent (e.g. Google Meet, Duo, Carrier Video)
+            val cleanNum = number.replace("[^0-9+]".toRegex(), "")
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                data = Uri.parse("tel:$cleanNum")
+                putExtra("android.telecom.extra.START_CALL_WITH_VIDEO_STATE", 3) // VideoProfile.STATE_BIDIRECTIONAL
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            if (intent.resolveActivity(context.packageManager) != null) {
+                context.startActivity(intent)
+            }
+        } catch (_: Exception) {
+            // Handled gracefully
+        }
+    }
 }

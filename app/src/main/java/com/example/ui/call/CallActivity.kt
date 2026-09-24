@@ -14,6 +14,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
+import com.example.SalimApplication
 import com.example.data.model.TelephonyCallState
 import com.example.telephony.CallManager
 import com.example.ui.theme.SalimTheme
@@ -53,8 +54,11 @@ class CallActivity : ComponentActivity() {
         setContent {
             SalimTheme {
                 val callInfo by CallManager.currentCallInfo.collectAsState()
+                val settings by SalimApplication.instance.preferencesManager.settingsFlow.collectAsState(initial = null)
+
                 CallScreen(
                     callInfo = callInfo,
+                    backgroundUri = settings?.callBackgroundUri,
                     onAnswer = { CallManager.answer() },
                     onDecline = {
                         CallManager.disconnect()
@@ -63,8 +67,17 @@ class CallActivity : ComponentActivity() {
                     onMuteToggle = { CallManager.setMuted(!it) },
                     onSpeakerToggle = { CallManager.toggleSpeaker() },
                     onHoldToggle = { CallManager.toggleHold() },
+                    onVideoCall = {
+                        val number = callInfo?.number ?: ""
+                        CallManager.startVideoCall(this@CallActivity, number)
+                    },
                     onDtmfTone = { digit -> CallManager.playDtmfTone(digit) },
-                    onDtmfStop = { CallManager.stopDtmfTone() }
+                    onDtmfStop = { CallManager.stopDtmfTone() },
+                    onSaveNote = { number, name, note ->
+                        lifecycleScope.launch {
+                            SalimApplication.instance.callNoteRepository.saveNote(number, name, note)
+                        }
+                    }
                 )
             }
         }

@@ -72,4 +72,21 @@ class ExampleRobolectricTest {
         assertEquals(1, resultsNum.size)
         assertEquals("Bob Jones", resultsNum.first().contact.name)
     }
+
+    @Test
+    fun testDialerSettingsDefaultStartTab() {
+        val settings = com.example.data.model.DialerSettings()
+        assertEquals("home", settings.defaultStartTab)
+        assertEquals(null, settings.callBackgroundUri)
+    }
+
+    @Test
+    fun testAvatarPresetsConfigured() {
+        val presets = com.example.ui.components.AVATAR_PRESETS
+        assertEquals(8, presets.size)
+        assertTrue(presets.any { it.id == "preset:star" })
+        assertTrue(presets.any { it.id == "preset:heart" })
+        assertTrue(presets.any { it.id == "preset:work" })
+        assertTrue(presets.any { it.id == "preset:home" })
+    }
 }

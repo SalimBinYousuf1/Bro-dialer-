@@ -3,8 +3,10 @@ package com.example.ui.contacts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.SalimApplication
+import com.example.data.model.ContactAvatar
 import com.example.data.model.ContactItem
 import com.example.data.repository.BlockedRepository
+import com.example.data.repository.ContactAvatarRepository
 import com.example.data.repository.ContactsRepository
 import com.example.data.repository.TelecomRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -18,7 +20,8 @@ import kotlinx.coroutines.launch
 class ContactsViewModel(
     private val contactsRepository: ContactsRepository = SalimApplication.instance.contactsRepository,
     private val blockedRepository: BlockedRepository = SalimApplication.instance.blockedRepository,
-    private val telecomRepository: TelecomRepository = SalimApplication.instance.telecomRepository
+    private val telecomRepository: TelecomRepository = SalimApplication.instance.telecomRepository,
+    private val contactAvatarRepository: ContactAvatarRepository = SalimApplication.instance.contactAvatarRepository
 ) : ViewModel() {
 
     private val _rawContacts = MutableStateFlow<List<ContactItem>>(emptyList())
@@ -33,15 +36,25 @@ class ContactsViewModel(
     private val _currentContact = MutableStateFlow<ContactItem?>(null)
     val currentContact: StateFlow<ContactItem?> = _currentContact.asStateFlow()
 
+    val avatars: StateFlow<List<ContactAvatar>> = contactAvatarRepository.allAvatars
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
     val filteredContacts: StateFlow<List<ContactItem>> = combine(
         _rawContacts,
-        _searchQuery
-    ) { contacts, query ->
+        _searchQuery,
+        avatars
+    ) { contacts, query, avatarList ->
+        val avatarMap = avatarList.associate { it.contactId to it.avatarUri }
+        val mappedContacts = contacts.map { contact ->
+            val customAvatar = avatarMap[contact.id]
+            if (customAvatar != null) contact.copy(photoUri = customAvatar) else contact
+        }
+
         if (query.isBlank()) {
-            contacts
+            mappedContacts
         } else {
             val q = query.trim().lowercase()
-            contacts.filter { contact ->
+            mappedContacts.filter { contact ->
                 contact.name.lowercase().contains(q) ||
                     contact.numbers.any { it.number.contains(q) || it.normalizedNumber.contains(q) } ||
                     contact.emails.any { it.lowercase().contains(q) }
@@ -68,7 +81,25 @@ class ContactsViewModel(
 
     fun loadContactDetails(contactId: Long) {
         viewModelScope.launch {
-            _currentContact.value = contactsRepository.getContactDetails(contactId)
+            val item = contactsRepository.getContactDetails(contactId)
+            val customAvatar = contactAvatarRepository.getAvatarSync(contactId)
+            _currentContact.value = if (customAvatar != null && item != null) {
+                item.copy(photoUri = customAvatar)
+            } else {
+                item
+            }
+        }
+    }
+
+    fun setContactAvatar(contactId: Long, avatarUri: String?) {
+        viewModelScope.launch {
+            if (avatarUri != null) {
+                contactAvatarRepository.setAvatar(contactId, avatarUri)
+            } else {
+                contactAvatarRepository.deleteAvatar(contactId)
+            }
+            loadContactDetails(contactId)
+            loadContacts()
         }
     }
 
@@ -91,6 +122,7 @@ class ContactsViewModel(
         viewModelScope.launch {
             val success = contactsRepository.deleteContact(contactId)
             if (success) {
+                contactAvatarRepository.deleteAvatar(contactId)
                 _rawContacts.value = _rawContacts.value.filter { it.id != contactId }
                 if (_currentContact.value?.id == contactId) {
                     _currentContact.value = null
@@ -107,12 +139,22 @@ class ContactsViewModel(
         type: String = "Mobile",
         email: String = "",
         organization: String = "",
+        avatarUri: String? = null,
         onResult: (Boolean) -> Unit
     ) {
         viewModelScope.launch {
             val ok = contactsRepository.createContact(firstName, lastName, phone, type, email, organization)
             if (ok) {
                 loadContacts()
+                if (avatarUri != null) {
+                    // Match newly created contact by phone or name
+                    val all = contactsRepository.loadContacts()
+                    val created = all.find { it.name.trim() == "$firstName $lastName".trim() }
+                    if (created != null) {
+                        contactAvatarRepository.setAvatar(created.id, avatarUri)
+                        loadContacts()
+                    }
+                }
             }
             onResult(ok)
         }

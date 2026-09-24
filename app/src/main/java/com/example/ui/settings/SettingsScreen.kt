@@ -1,8 +1,14 @@
 package com.example.ui.settings
 
-import android.content.Context
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,6 +19,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -21,11 +29,21 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.PhoneAndroid
+import androidx.compose.material.icons.filled.PhotoLibrary
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Vibration
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.Wallpaper
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
@@ -36,23 +54,32 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.ui.components.SalimBackButton
 import com.example.ui.components.SalimTopAppBar
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.SalimBlue
 import com.example.ui.theme.SalimGreen
+import com.example.ui.theme.SalimRed
+import com.example.ui.theme.SalimWhite
 import com.example.util.PermissionHelper
 import com.example.util.RoleHelper
 
@@ -68,6 +95,24 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val isDefaultDialer = RoleHelper.isDefaultDialer(context)
     val hasCorePerms = PermissionHelper.hasContactsPermission(context) && PermissionHelper.hasCallLogPermission(context)
+
+    var showDefaultTabDialog by remember { mutableStateOf(false) }
+
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.setCallBackgroundUri(uri.toString())
+        }
+    }
+
+    val tabDisplayNames = mapOf(
+        "home" to "Home",
+        "recents" to "Recents",
+        "contacts" to "Contacts",
+        "dialpad" to "Keypad",
+        "more" to "More"
+    )
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -126,7 +171,28 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 2: Calling & Dialpad
+                // Section 2: Navigation & Default Tab
+                SettingsSectionHeader("NAVIGATION & DEFAULT SCREEN")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                        SettingsClickableRow(
+                            icon = Icons.Default.Home,
+                            title = "Default Launch Screen",
+                            subtitle = "Screen displayed when Salim opens",
+                            badge = tabDisplayNames[settings.defaultStartTab] ?: "Home",
+                            badgeColor = SalimBlue,
+                            onClick = { showDefaultTabDialog = true }
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Section 3: Calling & Dialpad
                 SettingsSectionHeader("CALLING & DIALPAD")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -173,7 +239,95 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 3: Call Screening & Protection
+                // Section 4: Calling Screen Wallpaper / Background
+                SettingsSectionHeader("CALL SCREEN WALLPAPER")
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "In-Call Wallpaper",
+                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                Text(
+                                    text = if (settings.callBackgroundUri != null) "Custom photo wallpaper active" else "Default Dark Glass aesthetic",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+
+                            // Preview Thumbnail
+                            Box(
+                                modifier = Modifier
+                                    .size(54.dp, 72.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF1C1C1E))
+                                    .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (!settings.callBackgroundUri.isNullOrBlank()) {
+                                    AsyncImage(
+                                        model = settings.callBackgroundUri,
+                                        contentDescription = "Wallpaper Preview",
+                                        modifier = Modifier.fillMaxSize(),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Wallpaper,
+                                        contentDescription = null,
+                                        tint = Color.White.copy(alpha = 0.6f),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+
+                        Row(modifier = Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = {
+                                    photoPickerLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                    )
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SalimBlue,
+                                    contentColor = SalimWhite
+                                ),
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Icon(imageVector = Icons.Default.PhotoLibrary, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Choose Photo")
+                            }
+
+                            if (settings.callBackgroundUri != null) {
+                                Spacer(modifier = Modifier.width(10.dp))
+                                TextButton(
+                                    onClick = { viewModel.setCallBackgroundUri(null) }
+                                ) {
+                                    Text("Reset", color = SalimRed, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Section 5: Call Screening & Protection
                 SettingsSectionHeader("CALL SCREENING & BLOCKING")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -205,7 +359,7 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 4: Appearance
+                // Section 6: Appearance
                 SettingsSectionHeader("APPEARANCE")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -226,7 +380,7 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Section 5: About Salim
+                // Section 7: About Salim
                 SettingsSectionHeader("ABOUT SALIM")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
@@ -261,6 +415,76 @@ fun SettingsScreen(
                 Spacer(modifier = Modifier.height(32.dp))
             }
         }
+
+        // Dialog for Selecting Default Start Tab
+        if (showDefaultTabDialog) {
+            val tabs = listOf(
+                "home" to "Home (Dashboard & Favorites)",
+                "recents" to "Recents (Call History)",
+                "contacts" to "Contacts (Address Book)",
+                "dialpad" to "Keypad (Phone Dialpad)",
+                "more" to "More (Hub & Tools)"
+            )
+
+            AlertDialog(
+                onDismissRequest = { showDefaultTabDialog = false },
+                title = {
+                    Text(
+                        text = "Default Launch Screen",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                text = {
+                    Column {
+                        Text(
+                            text = "Choose which screen opens automatically whenever you launch Salim:",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        )
+                        tabs.forEach { (tabKey, tabLabel) ->
+                            val isSelected = settings.defaultStartTab == tabKey
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .selectable(
+                                        selected = isSelected,
+                                        onClick = {
+                                            viewModel.setDefaultStartTab(tabKey)
+                                            showDefaultTabDialog = false
+                                        }
+                                    )
+                                    .padding(vertical = 10.dp, horizontal = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (isSelected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                                    contentDescription = null,
+                                    tint = if (isSelected) SalimBlue else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = tabLabel,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
+                                    ),
+                                    color = if (isSelected) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = { showDefaultTabDialog = false }) {
+                        Text("Done", color = SalimBlue, fontWeight = FontWeight.Bold)
+                    }
+                },
+                shape = RoundedCornerShape(20.dp),
+                containerColor = MaterialTheme.colorScheme.surface
+            )
+        }
     }
 }
 
@@ -268,12 +492,11 @@ fun SettingsScreen(
 private fun SettingsSectionHeader(title: String) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelMedium.copy(
+        style = MaterialTheme.typography.labelSmall.copy(
             fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
             letterSpacing = 1.sp
         ),
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
     )
 }
@@ -291,18 +514,30 @@ private fun SettingsClickableRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+            .padding(horizontal = 16.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = SalimBlue, modifier = Modifier.size(22.dp))
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = SalimBlue,
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -310,17 +545,24 @@ private fun SettingsClickableRow(
             )
         }
         if (badge != null) {
-            Text(
-                text = badge,
-                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = badgeColor,
-                modifier = Modifier.padding(end = 6.dp)
-            )
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(badgeColor.copy(alpha = 0.12f))
+                    .padding(horizontal = 10.dp, vertical = 4.dp)
+            ) {
+                Text(
+                    text = badge,
+                    style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                    color = badgeColor
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
             modifier = Modifier.size(14.dp)
         )
     }
@@ -338,18 +580,30 @@ private fun SettingsSwitchRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = SalimBlue, modifier = Modifier.size(22.dp))
+        Box(
+            modifier = Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = SalimBlue,
+                modifier = Modifier.size(20.dp)
+            )
+        }
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(2.dp))
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
@@ -360,10 +614,10 @@ private fun SettingsSwitchRow(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
-                checkedTrackColor = SalimBlue,
-                uncheckedThumbColor = Color.White,
-                uncheckedTrackColor = Color(0xFFE5E5EA)
+                checkedThumbColor = SalimWhite,
+                checkedTrackColor = SalimGreen,
+                uncheckedThumbColor = SalimWhite,
+                uncheckedTrackColor = MaterialTheme.colorScheme.surface
             ),
             modifier = Modifier.testTag(testTag)
         )

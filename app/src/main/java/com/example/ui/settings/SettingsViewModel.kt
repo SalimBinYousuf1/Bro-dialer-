@@ -50,4 +50,16 @@ class SettingsViewModel(
             preferencesManager.updateSettings { it.copy(blockUnknownNumbers = enabled) }
         }
     }
+
+    fun setDefaultStartTab(tab: String) {
+        viewModelScope.launch {
+            preferencesManager.updateDefaultStartTab(tab)
+        }
+    }
+
+    fun setCallBackgroundUri(uri: String?) {
+        viewModelScope.launch {
+            preferencesManager.updateCallBackgroundUri(uri)
+        }
+    }
 }

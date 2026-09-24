@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.components.SalimAvatar
+import com.example.ui.components.SalimAvatarPickerSheet
 import com.example.ui.components.SalimBackButton
 import com.example.ui.components.SalimConfirmationDialog
 import com.example.ui.components.SalimTopAppBar
@@ -84,6 +85,7 @@ fun ContactDetailScreen(
 
     var showDeleteDialog by remember { mutableStateOf(false) }
     var showBlockDialog by remember { mutableStateOf(false) }
+    var showAvatarPicker by remember { mutableStateOf(false) }
 
     val contact by viewModel.currentContact.collectAsState()
 
@@ -123,12 +125,25 @@ fun ContactDetailScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 // Header Avatar & Name
-                SalimAvatar(
-                    name = currentContact.name,
-                    photoUri = currentContact.photoUri,
-                    size = 96.dp
-                )
-                Spacer(modifier = Modifier.height(14.dp))
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .clickable { showAvatarPicker = true }
+                        .padding(4.dp)
+                ) {
+                    SalimAvatar(
+                        name = currentContact.name,
+                        photoUri = currentContact.photoUri,
+                        size = 96.dp
+                    )
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (currentContact.photoUri != null) "Edit Photo" else "Add Photo",
+                        color = SalimBlue,
+                        style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = currentContact.name,
                     style = MaterialTheme.typography.headlineMedium.copy(
@@ -379,6 +394,19 @@ fun ContactDetailScreen(
                 }
             },
             onDismiss = { showBlockDialog = false }
+        )
+    }
+
+    if (showAvatarPicker && contact != null) {
+        SalimAvatarPickerSheet(
+            currentAvatarUri = contact?.photoUri,
+            contactName = contact?.name ?: "",
+            onAvatarSelected = { uri ->
+                contact?.id?.let { id ->
+                    viewModel.setContactAvatar(id, uri)
+                }
+            },
+            onDismiss = { showAvatarPicker = false }
         )
     }
 }

@@ -94,6 +94,7 @@ class MainActivity : ComponentActivity() {
                     homeViewModel = homeViewModel,
                     blockedNumbersViewModel = blockedNumbersViewModel,
                     settingsViewModel = settingsViewModel,
+                    defaultStartTab = settings.defaultStartTab,
                     onRequestPermissions = {
                         permissionLauncher.launch(PermissionHelper.MANDATORY_PERMISSIONS)
                     },
@@ -132,12 +133,20 @@ fun MainAppScaffold(
     homeViewModel: HomeViewModel,
     blockedNumbersViewModel: BlockedNumbersViewModel,
     settingsViewModel: SettingsViewModel,
+    defaultStartTab: String = "home",
     onRequestPermissions: () -> Unit,
     onRequestDefaultDialer: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
+    val initialRoute = when (defaultStartTab) {
+        "recents" -> Screen.Recents.route
+        "contacts" -> Screen.Contacts.route
+        "dialpad" -> Screen.Dialpad.route
+        "more" -> Screen.More.route
+        else -> Screen.Home.route
+    }
+    val currentRoute = navBackStackEntry?.destination?.route ?: initialRoute
 
     val bottomBarRoutes = listOf(
         Screen.Home.route,
@@ -170,7 +179,7 @@ fun MainAppScaffold(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = initialRoute,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {

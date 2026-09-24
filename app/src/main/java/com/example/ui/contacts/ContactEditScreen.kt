@@ -1,6 +1,6 @@
 package com.example.ui.contacts
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -8,21 +8,27 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -31,51 +37,61 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.components.SalimConfirmationDialog
-import com.example.ui.components.SalimTopAppBar
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.ui.components.SalimAvatar
+import com.example.ui.components.SalimAvatarPickerSheet
 import com.example.ui.theme.SalimBlue
 import com.example.ui.theme.SalimRed
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ContactEditScreen(
-    initialNumber: String = "",
-    viewModel: ContactsViewModel,
     onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    initialNumber: String = "",
+    modifier: Modifier = Modifier,
+    viewModel: ContactsViewModel = viewModel()
 ) {
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scope = rememberCoroutineScope()
-
     var firstName by remember { mutableStateOf("") }
     var lastName by remember { mutableStateOf("") }
     var phoneNumber by remember { mutableStateOf(initialNumber) }
     var email by remember { mutableStateOf("") }
     var organization by remember { mutableStateOf("") }
+    var selectedAvatarUri by remember { mutableStateOf<String?>(null) }
+    var showAvatarPicker by remember { mutableStateOf(false) }
 
     var isSaving by remember { mutableStateOf(false) }
-    var showDiscardDialog by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
-
-    val hasChanges = firstName.isNotBlank() || lastName.isNotBlank() || phoneNumber.isNotBlank() || email.isNotBlank() || organization.isNotBlank()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            SalimTopAppBar(
-                title = "New Contact",
+            TopAppBar(
+                title = {
+                    Text(
+                        text = "New Contact",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    titleContentColor = MaterialTheme.colorScheme.onBackground
+                ),
                 navigationIcon = {
                     TextButton(
                         onClick = {
-                            if (hasChanges) {
-                                showDiscardDialog = true
-                            } else {
+                            if (!isSaving) {
                                 onBack()
                             }
                         },
@@ -97,7 +113,8 @@ fun ContactEditScreen(
                                 lastName = lastName,
                                 phone = phoneNumber,
                                 email = email,
-                                organization = organization
+                                organization = organization,
+                                avatarUri = selectedAvatarUri
                             ) { success ->
                                 isSaving = false
                                 if (success) {
@@ -131,8 +148,30 @@ fun ContactEditScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
-                    .padding(20.dp)
+                    .padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // Apple-style interactive Avatar Header
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier
+                        .padding(bottom = 20.dp)
+                        .clickable { showAvatarPicker = true }
+                        .testTag("edit_avatar_trigger")
+                ) {
+                    SalimAvatar(
+                        name = "$firstName $lastName".trim().ifEmpty { "New" },
+                        photoUri = selectedAvatarUri,
+                        size = 96.dp
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = if (selectedAvatarUri != null) "Edit Photo" else "Add Photo",
+                        color = SalimBlue,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
+                    )
+                }
+
                 if (errorMessage != null) {
                     Text(
                         text = errorMessage ?: "",
@@ -179,8 +218,8 @@ fun ContactEditScreen(
                         SalimInputField(
                             value = organization,
                             onValueChange = { organization = it },
-                            placeholder = "Company / Organization",
-                            testTag = "contact_company_input"
+                            placeholder = "Company",
+                            testTag = "contact_org_input"
                         )
                     }
                 }
@@ -200,6 +239,7 @@ fun ContactEditScreen(
                                 errorMessage = null
                             },
                             placeholder = "Phone number",
+                            keyboardType = KeyboardType.Phone,
                             testTag = "contact_phone_input"
                         )
                         HorizontalDivider(
@@ -211,6 +251,7 @@ fun ContactEditScreen(
                             value = email,
                             onValueChange = { email = it },
                             placeholder = "Email address",
+                            keyboardType = KeyboardType.Email,
                             testTag = "contact_email_input"
                         )
                     }
@@ -221,24 +262,25 @@ fun ContactEditScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.2f)),
+                        .clip(RoundedCornerShape(0.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     CircularProgressIndicator(color = SalimBlue)
                 }
             }
-        }
-    }
 
-    if (showDiscardDialog) {
-        SalimConfirmationDialog(
-            title = "Discard Changes?",
-            message = "You have unsaved changes. Are you sure you want to discard them?",
-            confirmLabel = "Discard",
-            isDestructive = true,
-            onConfirm = onBack,
-            onDismiss = { showDiscardDialog = false }
-        )
+            // Avatar Selection Modal
+            if (showAvatarPicker) {
+                SalimAvatarPickerSheet(
+                    currentAvatarUri = selectedAvatarUri,
+                    contactName = "$firstName $lastName".trim().ifEmpty { "New Contact" },
+                    onAvatarSelected = { uri ->
+                        selectedAvatarUri = uri
+                    },
+                    onDismiss = { showAvatarPicker = false }
+                )
+            }
+        }
     }
 }
 
@@ -247,15 +289,17 @@ private fun SalimInputField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
+    keyboardType: KeyboardType = KeyboardType.Text,
     testTag: String
 ) {
-    OutlinedTextField(
+    TextField(
         value = value,
         onValueChange = onValueChange,
         placeholder = {
             Text(
                 text = placeholder,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                style = MaterialTheme.typography.bodyLarge
             )
         },
         singleLine = true,
@@ -265,8 +309,12 @@ private fun SalimInputField(
             disabledContainerColor = Color.Transparent,
             focusedIndicatorColor = Color.Transparent,
             unfocusedIndicatorColor = Color.Transparent,
-            focusedTextColor = MaterialTheme.colorScheme.onBackground,
-            unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+            focusedTextColor = MaterialTheme.colorScheme.onSurface,
+            unfocusedTextColor = MaterialTheme.colorScheme.onSurface
+        ),
+        keyboardOptions = KeyboardOptions(
+            capitalization = if (keyboardType == KeyboardType.Text) KeyboardCapitalization.Words else KeyboardCapitalization.None,
+            keyboardType = keyboardType
         ),
         modifier = Modifier
             .fillMaxWidth()

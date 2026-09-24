@@ -33,6 +33,8 @@ class PreferencesManager(private val context: Context) {
         val CONFIRM_DELETE_CALL_LOG = booleanPreferencesKey("confirm_delete_call_log")
         val VOICEMAIL_NUMBER = stringPreferencesKey("voicemail_number")
         val BLOCK_UNKNOWN_NUMBERS = booleanPreferencesKey("block_unknown_numbers")
+        val DEFAULT_START_TAB = stringPreferencesKey("default_start_tab")
+        val CALL_BACKGROUND_URI = stringPreferencesKey("call_background_uri")
     }
 
     val settingsFlow: Flow<DialerSettings> = context.dataStore.data.map { prefs ->
@@ -52,7 +54,9 @@ class PreferencesManager(private val context: Context) {
             groupCallsByDate = prefs[Keys.GROUP_CALLS_BY_DATE] ?: true,
             confirmDeleteCallLog = prefs[Keys.CONFIRM_DELETE_CALL_LOG] ?: true,
             voicemailNumber = prefs[Keys.VOICEMAIL_NUMBER] ?: "",
-            blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false
+            blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false,
+            defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "home",
+            callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI]
         )
     }
 
@@ -74,26 +78,26 @@ class PreferencesManager(private val context: Context) {
             prefs[Keys.CONFIRM_DELETE_CALL_LOG] = updated.confirmDeleteCallLog
             prefs[Keys.VOICEMAIL_NUMBER] = updated.voicemailNumber
             prefs[Keys.BLOCK_UNKNOWN_NUMBERS] = updated.blockUnknownNumbers
+            prefs[Keys.DEFAULT_START_TAB] = updated.defaultStartTab
+            if (updated.callBackgroundUri != null) {
+                prefs[Keys.CALL_BACKGROUND_URI] = updated.callBackgroundUri
+            } else {
+                prefs.remove(Keys.CALL_BACKGROUND_URI)
+            }
         }
     }
 
-    suspend fun updateThemeMode(mode: ThemeMode) {
-        context.dataStore.edit { it[Keys.THEME_MODE] = mode.name }
+    suspend fun updateDefaultStartTab(tab: String) {
+        context.dataStore.edit { it[Keys.DEFAULT_START_TAB] = tab }
     }
 
-    suspend fun updateHapticFeedback(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.HAPTIC_FEEDBACK] = enabled }
-    }
-
-    suspend fun updateDialpadTones(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.DIALPAD_TONES] = enabled }
-    }
-
-    suspend fun updateT9SearchEnabled(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.T9_SEARCH_ENABLED] = enabled }
-    }
-
-    suspend fun updateBlockUnknownNumbers(enabled: Boolean) {
-        context.dataStore.edit { it[Keys.BLOCK_UNKNOWN_NUMBERS] = enabled }
+    suspend fun updateCallBackgroundUri(uri: String?) {
+        context.dataStore.edit {
+            if (uri != null) {
+                it[Keys.CALL_BACKGROUND_URI] = uri
+            } else {
+                it.remove(Keys.CALL_BACKGROUND_URI)
+            }
+        }
     }
 }
