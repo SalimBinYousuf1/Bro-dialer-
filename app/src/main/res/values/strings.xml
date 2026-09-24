@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">Salim</string>
+    <string name="dialer_description">Salim Phone &amp; Dialer</string>
+    <string name="default_dialer_prompt">Salim needs to be your default phone app to provide full call management and in-call screens.</string>
+</resources>
