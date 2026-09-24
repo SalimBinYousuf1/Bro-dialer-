@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.data.model.ContactSortOrder
+import com.example.data.model.ContactsSettings
 import com.example.data.model.DialerSettings
 import com.example.data.model.ThemeMode
 import kotlinx.coroutines.flow.Flow
@@ -35,6 +36,15 @@ class PreferencesManager(private val context: Context) {
         val BLOCK_UNKNOWN_NUMBERS = booleanPreferencesKey("block_unknown_numbers")
         val DEFAULT_START_TAB = stringPreferencesKey("default_start_tab")
         val CALL_BACKGROUND_URI = stringPreferencesKey("call_background_uri")
+
+        // Contacts Settings
+        val CONTACTS_DISPLAY_PICTURE = booleanPreferencesKey("contacts_display_picture")
+        val CONTACTS_DISPLAY_NUMBER = booleanPreferencesKey("contacts_display_number")
+        val CONTACTS_DISPLAY_COMPANY = booleanPreferencesKey("contacts_display_company")
+        val CONTACTS_SHOW_NUMBERS_ONLY = booleanPreferencesKey("contacts_show_numbers_only")
+        val CONTACTS_DISPLAY_BY_ACCOUNT = stringPreferencesKey("contacts_display_by_account")
+        val CONTACTS_SORT_BY = stringPreferencesKey("contacts_sort_by")
+        val CONTACTS_SAVE_LOCATION = stringPreferencesKey("contacts_save_location")
     }
 
     val settingsFlow: Flow<DialerSettings> = context.dataStore.data.map { prefs ->
@@ -57,6 +67,18 @@ class PreferencesManager(private val context: Context) {
             blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false,
             defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "home",
             callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI]
+        )
+    }
+
+    val contactsSettingsFlow: Flow<ContactsSettings> = context.dataStore.data.map { prefs ->
+        ContactsSettings(
+            displayProfilePicture = prefs[Keys.CONTACTS_DISPLAY_PICTURE] ?: true,
+            displayNumber = prefs[Keys.CONTACTS_DISPLAY_NUMBER] ?: true,
+            displayCompanyAndTitle = prefs[Keys.CONTACTS_DISPLAY_COMPANY] ?: true,
+            showNumbersOnly = prefs[Keys.CONTACTS_SHOW_NUMBERS_ONLY] ?: false,
+            displayByAccount = prefs[Keys.CONTACTS_DISPLAY_BY_ACCOUNT] ?: "All Accounts",
+            sortBy = prefs[Keys.CONTACTS_SORT_BY] ?: "First name",
+            saveLocation = prefs[Keys.CONTACTS_SAVE_LOCATION] ?: "Phone"
         )
     }
 
@@ -84,6 +106,20 @@ class PreferencesManager(private val context: Context) {
             } else {
                 prefs.remove(Keys.CALL_BACKGROUND_URI)
             }
+        }
+    }
+
+    suspend fun updateContactsSettings(transform: (ContactsSettings) -> ContactsSettings) {
+        val current = contactsSettingsFlow.first()
+        val updated = transform(current)
+        context.dataStore.edit { prefs ->
+            prefs[Keys.CONTACTS_DISPLAY_PICTURE] = updated.displayProfilePicture
+            prefs[Keys.CONTACTS_DISPLAY_NUMBER] = updated.displayNumber
+            prefs[Keys.CONTACTS_DISPLAY_COMPANY] = updated.displayCompanyAndTitle
+            prefs[Keys.CONTACTS_SHOW_NUMBERS_ONLY] = updated.showNumbersOnly
+            prefs[Keys.CONTACTS_DISPLAY_BY_ACCOUNT] = updated.displayByAccount
+            prefs[Keys.CONTACTS_SORT_BY] = updated.sortBy
+            prefs[Keys.CONTACTS_SAVE_LOCATION] = updated.saveLocation
         }
     }
 

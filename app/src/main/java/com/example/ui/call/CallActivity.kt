@@ -43,9 +43,12 @@ class CallActivity : ComponentActivity() {
             )
         }
 
+        var hasHadActiveCall = false
         lifecycleScope.launch {
             CallManager.currentCallInfo.collectLatest { callInfo ->
-                if (callInfo == null) {
+                if (callInfo != null) {
+                    hasHadActiveCall = true
+                } else if (hasHadActiveCall) {
                     finish()
                 }
             }

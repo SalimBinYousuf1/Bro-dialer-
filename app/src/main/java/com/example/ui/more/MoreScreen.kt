@@ -17,6 +17,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -138,6 +139,19 @@ fun MoreScreen(
                         subtitle = "T9 search, tones, appearance",
                         onClick = { onNavigate(Screen.Settings.route) },
                         testTag = "more_settings"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    MoreNavRow(
+                        icon = Icons.Default.Phone,
+                        iconTint = SalimBlue,
+                        title = "Contacts Settings",
+                        subtitle = "Display, accounts, duplicate merge, trash",
+                        onClick = { onNavigate(Screen.ContactsSettings.route) },
+                        testTag = "more_contacts_settings"
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,

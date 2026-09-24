@@ -137,27 +137,14 @@ fun SettingsScreen(
                     .verticalScroll(rememberScrollState())
                     .padding(20.dp)
             ) {
-                // Section 1: System Integration
-                SettingsSectionHeader("SYSTEM INTEGRATION")
+                // Section 1: System Permissions
+                SettingsSectionHeader("SYSTEM PERMISSIONS")
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        SettingsClickableRow(
-                            icon = Icons.Default.PhoneAndroid,
-                            title = "Default Phone App",
-                            subtitle = if (isDefaultDialer) "Salim is currently default" else "Tap to set Salim as default",
-                            badge = if (isDefaultDialer) "Active" else "Set",
-                            badgeColor = if (isDefaultDialer) SalimGreen else SalimBlue,
-                            onClick = onRequestDefaultDialer
-                        )
-                        HorizontalDivider(
-                            thickness = 0.5.dp,
-                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
-                            modifier = Modifier.padding(horizontal = 16.dp)
-                        )
                         SettingsClickableRow(
                             icon = Icons.Default.Security,
                             title = "Permissions",

@@ -16,5 +16,6 @@ sealed class Screen(val route: String) {
     data object ContactEdit : Screen("contact_edit/{contactId}") {
         fun createRoute(contactId: Long) = "contact_edit/$contactId"
     }
+    data object ContactsSettings : Screen("contacts_settings")
     data object Permissions : Screen("permissions")
 }

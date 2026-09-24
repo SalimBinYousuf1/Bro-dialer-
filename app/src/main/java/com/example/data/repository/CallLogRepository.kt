@@ -113,4 +113,14 @@ class CallLogRepository(private val context: Context) {
             false
         }
     }
+
+    suspend fun getCallLogsForNumbers(numbers: List<String>): List<CallRecord> = withContext(Dispatchers.IO) {
+        if (numbers.isEmpty()) return@withContext emptyList()
+        val all = loadCallLogs()
+        val normalized = numbers.map { it.replace("[^0-9+]".toRegex(), "") }.filter { it.isNotBlank() }
+        all.filter { record ->
+            val clean = record.number.replace("[^0-9+]".toRegex(), "")
+            normalized.any { clean.endsWith(it) || it.endsWith(clean) }
+        }
+    }
 }

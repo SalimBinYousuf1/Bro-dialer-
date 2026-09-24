@@ -3,11 +3,14 @@ package com.example.ui.contacts
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.SalimApplication
+import com.example.data.model.CallRecord
 import com.example.data.model.ContactAvatar
 import com.example.data.model.ContactItem
 import com.example.data.repository.BlockedRepository
+import com.example.data.repository.CallLogRepository
 import com.example.data.repository.ContactAvatarRepository
 import com.example.data.repository.ContactsRepository
+import com.example.data.repository.RecentlyDeletedRepository
 import com.example.data.repository.TelecomRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -21,7 +24,9 @@ class ContactsViewModel(
     private val contactsRepository: ContactsRepository = SalimApplication.instance.contactsRepository,
     private val blockedRepository: BlockedRepository = SalimApplication.instance.blockedRepository,
     private val telecomRepository: TelecomRepository = SalimApplication.instance.telecomRepository,
-    private val contactAvatarRepository: ContactAvatarRepository = SalimApplication.instance.contactAvatarRepository
+    private val contactAvatarRepository: ContactAvatarRepository = SalimApplication.instance.contactAvatarRepository,
+    private val recentlyDeletedRepository: RecentlyDeletedRepository = SalimApplication.instance.recentlyDeletedRepository,
+    private val callLogRepository: CallLogRepository = SalimApplication.instance.callLogRepository
 ) : ViewModel() {
 
     private val _rawContacts = MutableStateFlow<List<ContactItem>>(emptyList())
@@ -91,6 +96,10 @@ class ContactsViewModel(
         }
     }
 
+    fun loadContactById(contactId: Long) = loadContactDetails(contactId)
+
+    fun updateAvatar(contactId: Long, avatarUri: String?) = setContactAvatar(contactId, avatarUri)
+
     fun setContactAvatar(contactId: Long, avatarUri: String?) {
         viewModelScope.launch {
             if (avatarUri != null) {
@@ -120,6 +129,10 @@ class ContactsViewModel(
 
     fun deleteContact(contactId: Long, onDone: () -> Unit) {
         viewModelScope.launch {
+            val contact = _rawContacts.value.find { it.id == contactId } ?: _currentContact.value
+            if (contact != null) {
+                recentlyDeletedRepository.recordDeleted(contact)
+            }
             val success = contactsRepository.deleteContact(contactId)
             if (success) {
                 contactAvatarRepository.deleteAvatar(contactId)
@@ -130,6 +143,10 @@ class ContactsViewModel(
                 onDone()
             }
         }
+    }
+
+    suspend fun loadCallLogsForContact(numbers: List<String>): List<CallRecord> {
+        return callLogRepository.getCallLogsForNumbers(numbers)
     }
 
     fun createContact(

@@ -16,7 +16,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -24,6 +28,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.SalimApplication
 import com.example.ui.blocked.BlockedNumbersScreen
 import com.example.ui.blocked.BlockedNumbersViewModel
 import com.example.ui.components.SalimBottomNavigation
@@ -31,6 +36,8 @@ import com.example.ui.contacts.ContactDetailScreen
 import com.example.ui.contacts.ContactEditScreen
 import com.example.ui.contacts.ContactsScreen
 import com.example.ui.contacts.ContactsViewModel
+import com.example.ui.contacts.settings.ContactsSettingsScreen
+import com.example.ui.contacts.settings.ContactsSettingsViewModel
 import com.example.ui.dialpad.DialpadScreen
 import com.example.ui.dialpad.DialpadViewModel
 import com.example.ui.favorites.FavoritesScreen
@@ -139,14 +146,28 @@ fun MainAppScaffold(
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val initialRoute = when (defaultStartTab) {
-        "recents" -> Screen.Recents.route
-        "contacts" -> Screen.Contacts.route
-        "dialpad" -> Screen.Dialpad.route
-        "more" -> Screen.More.route
-        else -> Screen.Home.route
+    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
+
+    var navigatedInitialTab by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(defaultStartTab) {
+        if (!navigatedInitialTab && defaultStartTab.isNotBlank() && defaultStartTab != "home") {
+            navigatedInitialTab = true
+            val target = when (defaultStartTab) {
+                "recents" -> Screen.Recents.route
+                "contacts" -> Screen.Contacts.route
+                "dialpad" -> Screen.Dialpad.route
+                "more" -> Screen.More.route
+                else -> null
+            }
+            target?.let {
+                navController.navigate(it) {
+                    popUpTo(Screen.Home.route) { saveState = true }
+                    launchSingleTop = true
+                    restoreState = true
+                }
+            }
+        }
     }
-    val currentRoute = navBackStackEntry?.destination?.route ?: initialRoute
 
     val bottomBarRoutes = listOf(
         Screen.Home.route,
@@ -165,12 +186,21 @@ fun MainAppScaffold(
                 SalimBottomNavigation(
                     currentRoute = currentRoute,
                     onNavigate = { targetRoute ->
-                        navController.navigate(targetRoute) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+                        if (targetRoute == Screen.Home.route) {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Home.route) {
+                                    inclusive = false
+                                }
+                                launchSingleTop = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
+                        } else {
+                            navController.navigate(targetRoute) {
+                                popUpTo(Screen.Home.route) {
+                                    saveState = true
+                                }
+                                launchSingleTop = true
+                                restoreState = true
+                            }
                         }
                     }
                 )
@@ -179,7 +209,7 @@ fun MainAppScaffold(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = initialRoute,
+            startDestination = Screen.Home.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {
@@ -282,6 +312,23 @@ fun MainAppScaffold(
                 ContactDetailScreen(
                     contactId = contactId,
                     viewModel = contactsViewModel,
+                    onBack = { navController.popBackStack() },
+                    onEditContact = { id ->
+                        navController.navigate(Screen.ContactEdit.createRoute(id))
+                    }
+                )
+            }
+
+            composable(Screen.ContactsSettings.route) {
+                val contactsSettingsViewModel: ContactsSettingsViewModel = viewModel(
+                    factory = ContactsSettingsViewModel.Factory(
+                        preferencesManager = SalimApplication.instance.preferencesManager,
+                        contactsRepository = SalimApplication.instance.contactsRepository,
+                        recentlyDeletedRepository = SalimApplication.instance.recentlyDeletedRepository
+                    )
+                )
+                ContactsSettingsScreen(
+                    viewModel = contactsSettingsViewModel,
                     onBack = { navController.popBackStack() }
                 )
             }

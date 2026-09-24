@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.EditNote
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MicOff
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material.icons.filled.VolumeDown
 import androidx.compose.material.icons.filled.VolumeUp
@@ -82,6 +83,12 @@ import com.example.ui.theme.SalimWhite
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+enum class InCallTab {
+    CONTROLS,
+    NOTES,
+    KEYPAD
+}
+
 @Composable
 fun CallScreen(
     callInfo: ActiveCallInfo?,
@@ -101,8 +108,7 @@ fun CallScreen(
     val scope = rememberCoroutineScope()
 
     var elapsedSeconds by remember { mutableLongStateOf(0L) }
-    var showInCallKeypad by remember { mutableStateOf(false) }
-    var showInCallNotes by remember { mutableStateOf(false) }
+    var activeTab by remember { mutableStateOf(InCallTab.CONTROLS) }
     var keypadDigits by remember { mutableStateOf("") }
     var noteText by remember { mutableStateOf("") }
     var copyNotice by remember { mutableStateOf<String?>(null) }
@@ -134,7 +140,7 @@ fun CallScreen(
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-        // Background layer: custom wallpaper or dark titanium
+        // Background layer: custom wallpaper from gallery or modern dark glass titanium
         if (!backgroundUri.isNullOrBlank()) {
             AsyncImage(
                 model = backgroundUri,
@@ -142,11 +148,11 @@ fun CallScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
-            // Translucent dark glass scrim
+            // Translucent dark scrim for high-contrast legibility
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.58f))
+                    .background(Color.Black.copy(alpha = 0.62f))
             )
         } else {
             Box(
@@ -156,35 +162,35 @@ fun CallScreen(
             )
         }
 
-        // Main Call UI
+        // Main Call UI Column
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .statusBarsPadding()
                 .navigationBarsPadding()
-                .padding(horizontal = 24.dp, vertical = 16.dp),
+                .padding(horizontal = 20.dp, vertical = 12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Top Section: Caller Info
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(top = 16.dp)
+                modifier = Modifier.padding(top = 12.dp)
             ) {
                 SalimAvatar(
                     name = callInfo?.displayName ?: "Unknown",
-                    size = 84.dp
+                    size = 80.dp
                 )
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
                     text = callInfo?.displayName ?: "Unknown",
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
-                        fontSize = 28.sp
+                        fontSize = 26.sp
                     ),
                     color = Color.White,
                     textAlign = TextAlign.Center
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = if (!callInfo?.number.isNullOrBlank()) {
                         PhoneNumberHelper.formatForDisplay(callInfo?.number ?: "")
@@ -192,15 +198,49 @@ fun CallScreen(
                     style = MaterialTheme.typography.bodyLarge,
                     color = Color.White.copy(alpha = 0.75f)
                 )
-                Spacer(modifier = Modifier.height(6.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = statusLabel,
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Medium,
-                        fontSize = 16.sp
+                        fontSize = 15.sp
                     ),
                     color = if (state == TelephonyCallState.RINGING) SalimGreen else Color.White.copy(alpha = 0.85f)
                 )
+
+                // Sleek Apple Pill Segmented Tab Control (Controls | Notes | Keypad)
+                if (state == TelephonyCallState.ACTIVE || state == TelephonyCallState.HOLDING || state == TelephonyCallState.DIALING) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(22.dp))
+                            .background(Color.White.copy(alpha = 0.12f))
+                            .padding(3.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        InCallTabSegment(
+                            title = "Controls",
+                            icon = Icons.Default.Tune,
+                            isSelected = activeTab == InCallTab.CONTROLS,
+                            onClick = { activeTab = InCallTab.CONTROLS },
+                            testTag = "incall_tab_controls"
+                        )
+                        InCallTabSegment(
+                            title = "Notes",
+                            icon = Icons.Default.EditNote,
+                            isSelected = activeTab == InCallTab.NOTES,
+                            onClick = { activeTab = InCallTab.NOTES },
+                            testTag = "incall_tab_notes"
+                        )
+                        InCallTabSegment(
+                            title = "Keypad",
+                            icon = Icons.Default.Dialpad,
+                            isSelected = activeTab == InCallTab.KEYPAD,
+                            onClick = { activeTab = InCallTab.KEYPAD },
+                            testTag = "incall_tab_keypad"
+                        )
+                    }
+                }
 
                 // Brief copy toast banner
                 AnimatedVisibility(visible = copyNotice != null) {
@@ -220,60 +260,94 @@ fun CallScreen(
                 }
             }
 
-            // Push controls down to bottom section for ergonomic single-hand reach
-            Spacer(modifier = Modifier.weight(1f))
+            // Bring interactive buttons down towards bottom for comfortable one-handed reach
+            Spacer(modifier = Modifier.weight(1.5f))
 
-            // Bottom Section: Interactive Controls
+            // Dynamic Content based on Active Tab
             if (state == TelephonyCallState.ACTIVE || state == TelephonyCallState.HOLDING || state == TelephonyCallState.DIALING) {
-                if (showInCallKeypad) {
-                    InCallKeypadOverlay(
-                        enteredDigits = keypadDigits,
-                        onDigitPress = { digit ->
-                            keypadDigits += digit
-                            onDtmfTone(digit)
-                        },
-                        onDigitRelease = onDtmfStop,
-                        onBackspace = {
-                            if (keypadDigits.isNotEmpty()) {
-                                keypadDigits = keypadDigits.dropLast(1)
-                            }
-                        },
-                        onCopyDigits = {
-                            if (keypadDigits.isNotEmpty()) {
-                                clipboardManager.setText(AnnotatedString(keypadDigits))
-                                copyNotice = "Keypad text copied"
-                                scope.launch {
-                                    delay(2000)
-                                    copyNotice = null
+                when (activeTab) {
+                    InCallTab.CONTROLS -> {
+                        InCallControlsGrid(
+                            isMuted = callInfo?.isMuted ?: false,
+                            isSpeakerOn = callInfo?.isSpeakerOn ?: false,
+                            isOnHold = callInfo?.isOnHold ?: false,
+                            onMuteToggle = { onMuteToggle(callInfo?.isMuted ?: false) },
+                            onKeypadToggle = { activeTab = InCallTab.KEYPAD },
+                            onSpeakerToggle = onSpeakerToggle,
+                            onVideoCall = onVideoCall,
+                            onHoldToggle = onHoldToggle,
+                            onNotesToggle = { activeTab = InCallTab.NOTES }
+                        )
+                    }
+                    InCallTab.NOTES -> {
+                        InCallNotesView(
+                            noteText = noteText,
+                            onNoteTextChange = { noteText = it },
+                            onCopyNote = {
+                                if (noteText.isNotBlank()) {
+                                    clipboardManager.setText(AnnotatedString(noteText))
+                                    copyNotice = "Note copied"
+                                    scope.launch {
+                                        delay(2000)
+                                        copyNotice = null
+                                    }
                                 }
-                            }
-                        },
-                        onClose = { showInCallKeypad = false }
-                    )
-                } else {
-                    // Ergonomic 2x3 Grid of in-call actions brought down near End Call button
-                    InCallControlsGrid(
-                        isMuted = callInfo?.isMuted ?: false,
-                        isSpeakerOn = callInfo?.isSpeakerOn ?: false,
-                        isOnHold = callInfo?.isOnHold ?: false,
-                        onMuteToggle = { onMuteToggle(callInfo?.isMuted ?: false) },
-                        onKeypadToggle = { showInCallKeypad = true },
-                        onSpeakerToggle = onSpeakerToggle,
-                        onVideoCall = onVideoCall,
-                        onHoldToggle = onHoldToggle,
-                        onNotesToggle = { showInCallNotes = true }
-                    )
+                            },
+                            onSaveNote = {
+                                if (noteText.isNotBlank()) {
+                                    onSaveNote(
+                                        callInfo?.number ?: "",
+                                        callInfo?.displayName,
+                                        noteText
+                                    )
+                                    copyNotice = "Note saved"
+                                    scope.launch {
+                                        delay(2000)
+                                        copyNotice = null
+                                    }
+                                    activeTab = InCallTab.CONTROLS
+                                }
+                            },
+                            onBackToControls = { activeTab = InCallTab.CONTROLS }
+                        )
+                    }
+                    InCallTab.KEYPAD -> {
+                        InCallKeypadOverlay(
+                            enteredDigits = keypadDigits,
+                            onDigitPress = { digit ->
+                                keypadDigits += digit
+                                onDtmfTone(digit)
+                            },
+                            onDigitRelease = onDtmfStop,
+                            onBackspace = {
+                                if (keypadDigits.isNotEmpty()) {
+                                    keypadDigits = keypadDigits.dropLast(1)
+                                }
+                            },
+                            onCopyDigits = {
+                                if (keypadDigits.isNotEmpty()) {
+                                    clipboardManager.setText(AnnotatedString(keypadDigits))
+                                    copyNotice = "Keypad text copied"
+                                    scope.launch {
+                                        delay(2000)
+                                        copyNotice = null
+                                    }
+                                }
+                            },
+                            onClose = { activeTab = InCallTab.CONTROLS }
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(20.dp))
 
             // Ringing State: Answer / Decline | Active State: End Call
             if (state == TelephonyCallState.RINGING) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 16.dp),
+                        .padding(bottom = 12.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
@@ -297,7 +371,7 @@ fun CallScreen(
             } else {
                 Box(
                     modifier = Modifier
-                        .padding(bottom = 16.dp)
+                        .padding(bottom = 12.dp)
                         .size(72.dp)
                         .clip(CircleShape)
                         .background(SalimRed)
@@ -309,134 +383,47 @@ fun CallScreen(
                         imageVector = Icons.Default.CallEnd,
                         contentDescription = "End Call",
                         tint = SalimWhite,
-                        modifier = Modifier.size(34.dp)
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
         }
+    }
+}
 
-        // Live In-Call Notes Modal / Sheet
-        AnimatedVisibility(
-            visible = showInCallNotes,
-            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(16.dp),
-                shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2E))
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.EditNote,
-                                contentDescription = null,
-                                tint = SalimBlue,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "Call Note",
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = Color.White
-                            )
-                        }
-
-                        TextButton(onClick = { showInCallNotes = false }) {
-                            Text("Done", color = SalimBlue, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    OutlinedTextField(
-                        value = noteText,
-                        onValueChange = { noteText = it },
-                        placeholder = {
-                            Text(
-                                "Type something the caller said...",
-                                color = Color.White.copy(alpha = 0.45f)
-                            )
-                        },
-                        minLines = 3,
-                        maxLines = 5,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedTextColor = Color.White,
-                            unfocusedTextColor = Color.White,
-                            focusedBorderColor = SalimBlue,
-                            unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
-                            cursorColor = SalimBlue
-                        ),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("incall_note_input")
-                    )
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End
-                    ) {
-                        // Copy Button
-                        TextButton(
-                            onClick = {
-                                if (noteText.isNotBlank()) {
-                                    clipboardManager.setText(AnnotatedString(noteText))
-                                    copyNotice = "Note copied to clipboard"
-                                    scope.launch {
-                                        delay(2000)
-                                        copyNotice = null
-                                    }
-                                }
-                            },
-                            enabled = noteText.isNotBlank()
-                        ) {
-                            Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, tint = SalimBlue, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Copy Note", color = SalimBlue)
-                        }
-
-                        Spacer(modifier = Modifier.width(8.dp))
-
-                        // Save Button
-                        Button(
-                            onClick = {
-                                if (noteText.isNotBlank()) {
-                                    onSaveNote(
-                                        callInfo?.number ?: "",
-                                        callInfo?.displayName,
-                                        noteText
-                                    )
-                                    copyNotice = "Note saved"
-                                    scope.launch {
-                                        delay(2000)
-                                        copyNotice = null
-                                    }
-                                    showInCallNotes = false
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SalimBlue,
-                                contentColor = SalimWhite
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            enabled = noteText.isNotBlank()
-                        ) {
-                            Text("Save")
-                        }
-                    }
-                }
-            }
+@Composable
+private fun InCallTabSegment(
+    title: String,
+    icon: ImageVector,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    testTag: String
+) {
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(18.dp))
+            .background(if (isSelected) Color.White else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 6.dp)
+            .testTag(testTag),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = if (isSelected) Color.Black else Color.White.copy(alpha = 0.8f),
+                modifier = Modifier.size(16.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = title,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    fontSize = 13.sp
+                ),
+                color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.8f)
+            )
         }
     }
 }
@@ -457,7 +444,7 @@ private fun InCallControlsGrid(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
         // Row 1: Mute, Keypad, Speaker
         Row(
@@ -494,7 +481,7 @@ private fun InCallControlsGrid(
         ) {
             InCallIconButton(
                 icon = Icons.Default.Videocam,
-                label = "FaceTime",
+                label = "Video Call",
                 isActive = false,
                 onClick = onVideoCall,
                 testTag = "incall_video_btn"
@@ -533,7 +520,7 @@ private fun InCallIconButton(
     ) {
         Box(
             modifier = Modifier
-                .size(60.dp)
+                .size(64.dp)
                 .clip(CircleShape)
                 .background(if (isActive) Color.White else Color(0xFF2C2C2E)),
             contentAlignment = Alignment.Center
@@ -542,14 +529,255 @@ private fun InCallIconButton(
                 imageVector = icon,
                 contentDescription = label,
                 tint = if (isActive) Color.Black else Color.White,
-                modifier = Modifier.size(26.dp)
+                modifier = Modifier.size(28.dp)
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-            color = Color.White.copy(alpha = 0.85f)
+            color = Color.White.copy(alpha = 0.9f)
+        )
+    }
+}
+
+@Composable
+private fun InCallNotesView(
+    noteText: String,
+    onNoteTextChange: (String) -> Unit,
+    onCopyNote: () -> Unit,
+    onSaveNote: () -> Unit,
+    onBackToControls: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2C2C2E))
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.EditNote,
+                        contentDescription = null,
+                        tint = SalimBlue,
+                        modifier = Modifier.size(22.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "In-Call Note",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                }
+
+                TextButton(onClick = onBackToControls) {
+                    Text("Controls", color = SalimBlue, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedTextField(
+                value = noteText,
+                onValueChange = onNoteTextChange,
+                placeholder = {
+                    Text(
+                        "Write something the caller says...",
+                        color = Color.White.copy(alpha = 0.45f)
+                    )
+                },
+                minLines = 3,
+                maxLines = 5,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = SalimBlue,
+                    unfocusedBorderColor = Color.White.copy(alpha = 0.25f),
+                    cursorColor = SalimBlue
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("incall_note_input")
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Copy Button with icon + label
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = if (noteText.isNotBlank()) SalimBlue.copy(alpha = 0.2f) else Color.Transparent,
+                    modifier = Modifier
+                        .clickable(enabled = noteText.isNotBlank(), onClick = onCopyNote)
+                        .testTag("copy_note_button")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = null,
+                            tint = if (noteText.isNotBlank()) SalimBlue else Color.White.copy(alpha = 0.3f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = "Copy Note",
+                            color = if (noteText.isNotBlank()) SalimBlue else Color.White.copy(alpha = 0.3f),
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(10.dp))
+
+                // Save Button
+                Button(
+                    onClick = onSaveNote,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = SalimBlue,
+                        contentColor = SalimWhite
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    enabled = noteText.isNotBlank(),
+                    modifier = Modifier.testTag("save_note_button")
+                ) {
+                    Text("Save Note")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun InCallKeypadOverlay(
+    enteredDigits: String,
+    onDigitPress: (Char) -> Unit,
+    onDigitRelease: () -> Unit,
+    onBackspace: () -> Unit,
+    onCopyDigits: () -> Unit,
+    onClose: () -> Unit
+) {
+    val keys = listOf(
+        listOf(KeypadButtonDef('1', "", "incall_key_1"), KeypadButtonDef('2', "ABC", "incall_key_2"), KeypadButtonDef('3', "DEF", "incall_key_3")),
+        listOf(KeypadButtonDef('4', "GHI", "incall_key_4"), KeypadButtonDef('5', "JKL", "incall_key_5"), KeypadButtonDef('6', "MNO", "incall_key_6")),
+        listOf(KeypadButtonDef('7', "PQRS", "incall_key_7"), KeypadButtonDef('8', "TUV", "incall_key_8"), KeypadButtonDef('9', "WXYZ", "incall_key_9")),
+        listOf(KeypadButtonDef('*', "", "incall_key_star"), KeypadButtonDef('0', "+", "incall_key_0"), KeypadButtonDef('#', "", "incall_key_hash"))
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // Display box for typed digits with prominent Copy button and Backspace
+        Row(
+            modifier = Modifier
+                .fillMaxWidth(0.92f)
+                .height(46.dp)
+                .clip(RoundedCornerShape(12.dp))
+                .background(Color(0xFF2C2C2E))
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = enteredDigits.ifEmpty { "Enter digits..." },
+                color = if (enteredDigits.isEmpty()) Color.White.copy(alpha = 0.4f) else Color.White,
+                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                modifier = Modifier.weight(1f)
+            )
+
+            if (enteredDigits.isNotEmpty()) {
+                // Prominent Copy Button with label & icon
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = SalimBlue.copy(alpha = 0.2f),
+                    modifier = Modifier
+                        .clickable(onClick = onCopyDigits)
+                        .testTag("copy_keypad_digits_btn")
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ContentCopy,
+                            contentDescription = "Copy digits",
+                            tint = SalimBlue,
+                            modifier = Modifier.size(15.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "Copy",
+                            color = SalimBlue,
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.width(8.dp))
+
+                // Backspace Button
+                IconButton(
+                    onClick = onBackspace,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.Backspace,
+                        contentDescription = "Backspace",
+                        tint = Color.White.copy(alpha = 0.75f),
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Dialpad Grid
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            keys.forEach { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
+                    row.forEach { def ->
+                        DialpadKey(
+                            def = def,
+                            onClick = { onDigitPress(def.digit) },
+                            onLongClick = {}
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        Text(
+            text = "Back to Controls",
+            color = SalimBlue,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+            modifier = Modifier
+                .clickable(onClick = onClose)
+                .padding(6.dp)
         )
     }
 }
@@ -588,115 +816,6 @@ private fun CallActionButton(
             text = label,
             style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
             color = Color.White
-        )
-    }
-}
-
-@Composable
-private fun InCallKeypadOverlay(
-    enteredDigits: String,
-    onDigitPress: (Char) -> Unit,
-    onDigitRelease: () -> Unit,
-    onBackspace: () -> Unit,
-    onCopyDigits: () -> Unit,
-    onClose: () -> Unit
-) {
-    val keys = listOf(
-        listOf(KeypadButtonDef('1', "", "incall_key_1"), KeypadButtonDef('2', "ABC", "incall_key_2"), KeypadButtonDef('3', "DEF", "incall_key_3")),
-        listOf(KeypadButtonDef('4', "GHI", "incall_key_4"), KeypadButtonDef('5', "JKL", "incall_key_5"), KeypadButtonDef('6', "MNO", "incall_key_6")),
-        listOf(KeypadButtonDef('7', "PQRS", "incall_key_7"), KeypadButtonDef('8', "TUV", "incall_key_8"), KeypadButtonDef('9', "WXYZ", "incall_key_9")),
-        listOf(KeypadButtonDef('*', "", "incall_key_star"), KeypadButtonDef('0', "+", "incall_key_0"), KeypadButtonDef('#', "", "incall_key_hash"))
-    )
-
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // Display box for typed digits with Copy and Backspace buttons
-        Row(
-            modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .height(44.dp)
-                .clip(RoundedCornerShape(12.dp))
-                .background(Color(0xFF2C2C2E))
-                .padding(horizontal = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = enteredDigits.ifEmpty { "Enter digits..." },
-                color = if (enteredDigits.isEmpty()) Color.White.copy(alpha = 0.4f) else Color.White,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                modifier = Modifier.weight(1f)
-            )
-
-            if (enteredDigits.isNotEmpty()) {
-                // Copy Button for typed digits
-                IconButton(
-                    onClick = onCopyDigits,
-                    modifier = Modifier
-                        .size(32.dp)
-                        .testTag("copy_keypad_digits_btn")
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ContentCopy,
-                        contentDescription = "Copy digits",
-                        tint = SalimBlue,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(4.dp))
-
-                // Backspace Button
-                IconButton(
-                    onClick = onBackspace,
-                    modifier = Modifier.size(32.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.Backspace,
-                        contentDescription = "Backspace",
-                        tint = Color.White.copy(alpha = 0.7f),
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // Dialpad Grid
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            keys.forEach { row ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceEvenly
-                ) {
-                    row.forEach { def ->
-                        DialpadKey(
-                            def = def,
-                            onClick = { onDigitPress(def.digit) },
-                            onLongClick = {}
-                        )
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        Text(
-            text = "Hide Keypad",
-            color = SalimBlue,
-            style = MaterialTheme.typography.labelLarge,
-            modifier = Modifier
-                .clickable(onClick = onClose)
-                .padding(8.dp)
         )
     }
 }

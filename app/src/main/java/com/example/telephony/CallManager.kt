@@ -47,6 +47,26 @@ object CallManager {
         this.inCallService = service
     }
 
+    fun initiateOutgoingCall(context: Context, number: String, name: String = "") {
+        val clean = PhoneNumberHelper.normalizeNumber(number)
+        _currentCallInfo.value = ActiveCallInfo(
+            callId = System.currentTimeMillis().toString(),
+            number = clean,
+            displayName = name.ifBlank { PhoneNumberHelper.formatForDisplay(clean) },
+            state = TelephonyCallState.DIALING,
+            isMuted = false,
+            isSpeakerOn = false,
+            isBluetoothOn = false,
+            isOnHold = false
+        )
+        val intent = Intent(context, CallActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        }
+        context.startActivity(intent)
+    }
+
     fun onCallAdded(call: Call, context: Context) {
         activeCall?.unregisterCallback(callCallback)
         activeCall = call

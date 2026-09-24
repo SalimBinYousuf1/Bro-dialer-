@@ -39,6 +39,9 @@ class TelecomRepository(private val context: Context) {
         val cleanNumber = PhoneNumberHelper.normalizeNumber(rawNumber)
         if (cleanNumber.isBlank()) return false
 
+        // Launch Salim CallActivity first
+        com.example.telephony.CallManager.initiateOutgoingCall(context, cleanNumber)
+
         val uri = Uri.fromParts("tel", cleanNumber, null)
         val hasCallPhone = ContextCompat.checkSelfPermission(
             context,

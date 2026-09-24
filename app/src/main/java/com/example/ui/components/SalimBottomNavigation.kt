@@ -98,9 +98,7 @@ fun SalimBottomNavigation(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = {
-                                if (currentRoute != item.route) {
-                                    onNavigate(item.route)
-                                }
+                                onNavigate(item.route)
                             }
                         )
                         .testTag(item.testTag),

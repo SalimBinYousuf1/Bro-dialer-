@@ -8,6 +8,7 @@ import com.example.data.repository.CallLogRepository
 import com.example.data.repository.CallNoteRepository
 import com.example.data.repository.ContactAvatarRepository
 import com.example.data.repository.ContactsRepository
+import com.example.data.repository.RecentlyDeletedRepository
 import com.example.data.repository.TelecomRepository
 
 class SalimApplication : Application() {
@@ -36,6 +37,9 @@ class SalimApplication : Application() {
     lateinit var callNoteRepository: CallNoteRepository
         private set
 
+    lateinit var recentlyDeletedRepository: RecentlyDeletedRepository
+        private set
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -47,6 +51,7 @@ class SalimApplication : Application() {
         telecomRepository = TelecomRepository(this)
         contactAvatarRepository = ContactAvatarRepository(database.contactAvatarDao())
         callNoteRepository = CallNoteRepository(database.callNoteDao())
+        recentlyDeletedRepository = RecentlyDeletedRepository(database.recentlyDeletedContactDao())
     }
 
     companion object {

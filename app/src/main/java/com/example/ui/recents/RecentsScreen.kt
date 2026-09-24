@@ -120,21 +120,23 @@ fun RecentsScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (isSelectionMode) {
-                    TextButton(
-                        onClick = {
-                            if (selectedIds.size == calls.size) {
-                                viewModel.deselectAll()
-                            } else {
-                                viewModel.selectAll()
-                            }
-                        },
-                        modifier = Modifier.testTag("recents_select_all_button")
-                    ) {
-                        Text(
-                            text = if (selectedIds.size == calls.size) "Deselect All" else "Select All",
-                            color = SalimBlue,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                if (selectedIds.isNotEmpty()) {
+                                    viewModel.deselectAll()
+                                } else {
+                                    viewModel.selectAll()
+                                }
+                            },
+                            modifier = Modifier.testTag("recents_select_all_button")
+                        ) {
+                            Text(
+                                text = if (selectedIds.isNotEmpty()) "Deselect All" else "Select All",
+                                color = SalimBlue,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
                     }
                 } else {
                     Text(
@@ -155,19 +157,47 @@ fun RecentsScreen(
                     )
                 }
 
-                TextButton(
-                    onClick = {
-                        viewModel.setSelectionMode(!isSelectionMode)
-                    },
-                    modifier = Modifier.testTag("recents_edit_button")
-                ) {
-                    Text(
-                        text = if (isSelectionMode) "Done" else "Edit",
-                        color = SalimBlue,
-                        style = MaterialTheme.typography.bodyLarge.copy(
-                            fontWeight = if (isSelectionMode) FontWeight.Bold else FontWeight.Normal
+                if (isSelectionMode) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        TextButton(
+                            onClick = {
+                                viewModel.deselectAll()
+                                viewModel.setSelectionMode(false)
+                            },
+                            modifier = Modifier.testTag("recents_cancel_button")
+                        ) {
+                            Text(
+                                text = "Cancel",
+                                color = SalimRed,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                        TextButton(
+                            onClick = {
+                                viewModel.setSelectionMode(false)
+                            },
+                            modifier = Modifier.testTag("recents_done_button")
+                        ) {
+                            Text(
+                                text = "Done",
+                                color = SalimBlue,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
+                            )
+                        }
+                    }
+                } else {
+                    TextButton(
+                        onClick = {
+                            viewModel.setSelectionMode(true)
+                        },
+                        modifier = Modifier.testTag("recents_edit_button")
+                    ) {
+                        Text(
+                            text = "Edit",
+                            color = SalimBlue,
+                            style = MaterialTheme.typography.bodyLarge
                         )
-                    )
+                    }
                 }
             }
 
