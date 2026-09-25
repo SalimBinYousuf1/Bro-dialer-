@@ -1,7 +1,6 @@
 package com.example.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
@@ -13,39 +12,39 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
-    primary = SalimBlue,
-    onPrimary = SalimWhite,
-    primaryContainer = SalimSecondarySurfaceDark,
-    onPrimaryContainer = SalimTextPrimaryDark,
-    secondary = SalimGray,
-    onSecondary = SalimWhite,
-    background = SalimBackgroundDark,
-    onBackground = SalimTextPrimaryDark,
-    surface = SalimSurfaceDark,
-    onSurface = SalimTextPrimaryDark,
-    surfaceVariant = SalimSecondarySurfaceDark,
-    onSurfaceVariant = SalimTextSecondaryDark,
-    outline = SalimDividerDark,
-    error = SalimRed,
-    onError = SalimWhite
+    primary = GlassTextPrimaryDark,
+    onPrimary = GlassBackgroundDark,
+    primaryContainer = GlassSurfaceElevatedDark,
+    onPrimaryContainer = GlassTextPrimaryDark,
+    secondary = GlassTextSecondaryDark,
+    onSecondary = GlassBackgroundDark,
+    background = GlassBackgroundDark,
+    onBackground = GlassTextPrimaryDark,
+    surface = GlassSurfaceDark,
+    onSurface = GlassTextPrimaryDark,
+    surfaceVariant = GlassSecondarySurfaceDark,
+    onSurfaceVariant = GlassTextSecondaryDark,
+    outline = GlassBorderDark,
+    error = GlassTextPrimaryDark,
+    onError = GlassBackgroundDark
 )
 
 private val LightColorScheme = lightColorScheme(
-    primary = SalimBlue,
-    onPrimary = SalimWhite,
-    primaryContainer = SalimSecondarySurfaceLight,
-    onPrimaryContainer = SalimTextPrimaryLight,
-    secondary = SalimGray,
-    onSecondary = SalimWhite,
-    background = SalimBackgroundLight,
-    onBackground = SalimTextPrimaryLight,
-    surface = SalimSurfaceLight,
-    onSurface = SalimTextPrimaryLight,
-    surfaceVariant = SalimSecondarySurfaceLight,
-    onSurfaceVariant = SalimTextSecondaryLight,
-    outline = SalimDividerLight,
-    error = SalimRed,
-    onError = SalimWhite
+    primary = GlassTextPrimaryLight,
+    onPrimary = GlassPureWhite,
+    primaryContainer = GlassSurfaceElevatedLight,
+    onPrimaryContainer = GlassTextPrimaryLight,
+    secondary = GlassTextSecondaryLight,
+    onSecondary = GlassPureWhite,
+    background = GlassBackgroundLight,
+    onBackground = GlassTextPrimaryLight,
+    surface = GlassSurfaceLight,
+    onSurface = GlassTextPrimaryLight,
+    surfaceVariant = GlassSecondarySurfaceLight,
+    onSurfaceVariant = GlassTextSecondaryLight,
+    outline = GlassBorderLight,
+    error = GlassTextPrimaryLight,
+    onError = GlassPureWhite
 )
 
 @Composable
@@ -59,10 +58,12 @@ fun SalimTheme(
         SideEffect {
             val window = (view.context as? Activity)?.window
             if (window != null) {
-                window.statusBarColor = colorScheme.background.toArgb()
-                window.navigationBarColor = colorScheme.background.toArgb()
-                WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
-                WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
+                window.statusBarColor = android.graphics.Color.TRANSPARENT
+                window.navigationBarColor = android.graphics.Color.TRANSPARENT
+                WindowCompat.getInsetsController(window, view).apply {
+                    isAppearanceLightStatusBars = !darkTheme
+                    isAppearanceLightNavigationBars = !darkTheme
+                }
             }
         }
     }

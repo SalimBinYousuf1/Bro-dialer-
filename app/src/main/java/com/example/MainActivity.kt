@@ -179,8 +179,10 @@ fun MainAppScaffold(
 
     val showBottomBar = currentRoute in bottomBarRoutes
 
+    val isDark = isSystemInDarkTheme()
     Scaffold(
         modifier = Modifier.fillMaxSize(),
+        containerColor = if (isDark) com.example.ui.theme.GlassBackgroundDark else com.example.ui.theme.GlassBackgroundLight,
         bottomBar = {
             if (showBottomBar) {
                 SalimBottomNavigation(

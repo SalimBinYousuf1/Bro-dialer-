@@ -1,7 +1,6 @@
 package com.example.ui.home
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -22,6 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.automirrored.filled.CallMade
+import androidx.compose.material.icons.automirrored.filled.CallMissed
+import androidx.compose.material.icons.automirrored.filled.CallReceived
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Dialpad
@@ -30,25 +33,15 @@ import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Voicemail
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
@@ -58,11 +51,19 @@ import com.example.data.model.CallType
 import com.example.data.model.ContactItem
 import com.example.ui.components.SalimAvatar
 import com.example.ui.navigation.Screen
-import com.example.ui.theme.SalimBlue
-import com.example.ui.theme.SalimGreen
-import com.example.ui.theme.SalimRed
-import com.example.ui.theme.SalimWhite
-import com.example.ui.theme.SalimYellow
+import com.example.ui.theme.FrostButton
+import com.example.ui.theme.FrostCard
+import com.example.ui.theme.FrostIconButton
+import com.example.ui.theme.FrostInteractiveCard
+import com.example.ui.theme.GlassTextPrimaryDark
+import com.example.ui.theme.GlassTextPrimaryLight
+import com.example.ui.theme.GlassTextSecondaryDark
+import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.liquidGlass
+import com.example.ui.theme.liquidGlassInteractive
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 @Composable
 fun HomeScreen(
@@ -71,25 +72,32 @@ fun HomeScreen(
     onRequestDefaultDialer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = isSystemInDarkTheme()
     val state by viewModel.state.collectAsState()
+
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
     LaunchedEffect(Unit) {
         viewModel.refresh()
     }
 
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = modifier.fillMaxSize()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(horizontal = 18.dp, vertical = 8.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 20.dp, vertical = 16.dp)
         ) {
             // App Brand Header
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -98,58 +106,55 @@ fun HomeScreen(
                         text = "Salim",
                         style = MaterialTheme.typography.displayLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = 34.sp
+                            fontSize = 32.sp,
+                            letterSpacing = (-0.5).sp
                         ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = textPrimary
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "Your calls, your control",
+                        text = "Native Phone & Dialer",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = textMuted
                     )
                 }
 
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(SalimBlue.copy(alpha = 0.1f)),
+                        .size(46.dp)
+                        .liquidGlass(shape = CircleShape, elevation = 2.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.PhoneAndroid,
-                        contentDescription = "Dialer Status",
-                        tint = SalimBlue,
+                        contentDescription = "Status",
+                        tint = textPrimary,
                         modifier = Modifier.size(24.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
             // Default Dialer Banner
             if (!state.isDefaultDialer) {
-                Card(
+                FrostCard(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .testTag("default_dialer_banner"),
-                    shape = RoundedCornerShape(18.dp),
-                    colors = CardDefaults.cardColors(containerColor = SalimBlue.copy(alpha = 0.08f))
+                        .testTag("default_dialer_banner")
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
-                                    .size(32.dp)
-                                    .clip(CircleShape)
-                                    .background(SalimBlue),
+                                    .size(34.dp)
+                                    .liquidGlass(shape = CircleShape, elevation = 2.dp, isElevated = true),
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.PhoneAndroid,
                                     contentDescription = null,
-                                    tint = SalimWhite,
+                                    tint = textPrimary,
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
@@ -157,57 +162,56 @@ fun HomeScreen(
                             Text(
                                 text = "Set as Default Phone App",
                                 style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                                color = MaterialTheme.colorScheme.onBackground
+                                color = textPrimary
                             )
                         }
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Set Salim as your default dialer to enable real-time call screening, full incoming call handling, and native telecom integration.",
+                            text = "Set Salim as your default dialer to enable full incoming call screens, spam screening, and call control.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = textMuted
                         )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(
+                        Spacer(modifier = Modifier.height(14.dp))
+                        FrostButton(
+                            text = "Make Salim Default",
                             onClick = onRequestDefaultDialer,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = SalimBlue,
-                                contentColor = SalimWhite
-                            ),
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.testTag("make_default_button")
-                        ) {
-                            Text("Make Salim Default")
-                        }
+                            isProminent = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            testTag = "make_default_button"
+                        )
                     }
                 }
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(18.dp))
             }
 
-            // Quick Actions Grid (6 items)
+            // Quick Actions Section
             Text(
                 text = "Quick Actions",
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                color = MaterialTheme.colorScheme.onBackground
+                style = MaterialTheme.typography.titleMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 17.sp
+                ),
+                color = textPrimary,
+                modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
             )
-            Spacer(modifier = Modifier.height(10.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.Dialpad,
                     label = "Keypad",
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigate(Screen.Dialpad.route) }
                 )
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.PersonAdd,
-                    label = "Add Contact",
+                    label = "New Contact",
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigate(Screen.ContactEdit.createRoute(-1L)) }
                 )
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.History,
                     label = "Recents",
                     modifier = Modifier.weight(1f),
@@ -221,19 +225,19 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.Star,
                     label = "Favorites",
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigate(Screen.Favorites.route) }
                 )
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.Voicemail,
                     label = "Voicemail",
                     modifier = Modifier.weight(1f),
                     onClick = { onNavigate(Screen.Voicemail.route) }
                 )
-                HomeQuickAction(
+                HomeQuickActionTile(
                     icon = Icons.Default.Block,
                     label = "Blocked",
                     modifier = Modifier.weight(1f),
@@ -246,26 +250,34 @@ fun HomeScreen(
             // Favorites Carousel
             if (state.favorites.isNotEmpty()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp, vertical = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Favorites",
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                        color = MaterialTheme.colorScheme.onBackground
+                        text = "Favorite Contacts",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 17.sp
+                        ),
+                        color = textPrimary
                     )
-                    TextButton(onClick = { onNavigate(Screen.Favorites.route) }) {
-                        Text("See All", color = SalimBlue)
-                    }
+                    FrostButton(
+                        text = "View All",
+                        onClick = { onNavigate(Screen.Favorites.route) }
+                    )
                 }
+
                 Spacer(modifier = Modifier.height(8.dp))
+
                 LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    contentPadding = PaddingValues(end = 12.dp)
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(state.favorites) { contact ->
-                        HomeFavoriteItem(
+                        FavoriteGlassChip(
                             contact = contact,
                             onClick = {
                                 if (contact.primaryNumber.isNotBlank()) {
@@ -277,104 +289,102 @@ fun HomeScreen(
                         )
                     }
                 }
+
                 Spacer(modifier = Modifier.height(24.dp))
             }
 
-            // Recent Calls Section
+            // Recent Calls Activity
             Row(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Recent Calls",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onBackground
+                    text = "Recent Activity",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    ),
+                    color = textPrimary
                 )
-                TextButton(onClick = { onNavigate(Screen.Recents.route) }) {
-                    Text("See All", color = SalimBlue)
-                }
+                FrostButton(
+                    text = "All Calls",
+                    onClick = { onNavigate(Screen.Recents.route) }
+                )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             if (state.recentCalls.isEmpty()) {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "No recent calls found on device.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
+                FrostCard(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "No recent calls logged yet.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textMuted,
+                        modifier = Modifier.padding(8.dp)
+                    )
                 }
             } else {
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                        state.recentCalls.forEachIndexed { idx, call ->
-                            if (idx > 0) {
-                                HorizontalDivider(
-                                    modifier = Modifier.padding(horizontal = 16.dp),
-                                    thickness = 0.5.dp,
-                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
-                                )
-                            }
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    state.recentCalls.take(4).forEach { record ->
+                        FrostInteractiveCard(
+                            onClick = { viewModel.makeCall(record.number) },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
                             Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable { viewModel.makeCall(call.number) }
-                                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    SalimAvatar(
-                                        name = call.displayName,
-                                        photoUri = call.photoUri,
-                                        size = 38.dp
+                                SalimAvatar(
+                                    name = record.callerName ?: record.number,
+                                    photoUri = record.photoUri,
+                                    size = 42.dp
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = record.callerName ?: record.number,
+                                        style = MaterialTheme.typography.bodyLarge.copy(
+                                            fontWeight = FontWeight.SemiBold,
+                                            fontSize = 15.sp
+                                        ),
+                                        color = textPrimary,
+                                        maxLines = 1
                                     )
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        val isMissed = call.type == CallType.MISSED || call.type == CallType.REJECTED
-                                        Text(
-                                            text = call.displayName,
-                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                            color = if (isMissed) SalimRed else MaterialTheme.colorScheme.onBackground
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val typeIcon = when (record.type) {
+                                            CallType.INCOMING -> Icons.AutoMirrored.Filled.CallReceived
+                                            CallType.OUTGOING -> Icons.AutoMirrored.Filled.CallMade
+                                            CallType.MISSED -> Icons.AutoMirrored.Filled.CallMissed
+                                            else -> Icons.Default.Call
+                                        }
+                                        Icon(
+                                            imageVector = typeIcon,
+                                            contentDescription = null,
+                                            tint = textMuted,
+                                            modifier = Modifier.size(13.dp)
                                         )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        val timeStr = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(record.date))
                                         Text(
-                                            text = call.number,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            text = timeStr,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = textMuted
                                         )
                                     }
                                 }
 
-                                IconButton(
-                                    onClick = { viewModel.makeCall(call.number) },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Call,
-                                        contentDescription = "Call",
-                                        tint = SalimGreen,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
+                                FrostIconButton(
+                                    icon = Icons.Default.Call,
+                                    contentDescription = "Call back",
+                                    onClick = { viewModel.makeCall(record.number) },
+                                    size = 36.dp,
+                                    iconSize = 18.dp,
+                                    elevation = 1.dp
+                                )
                             }
                         }
                     }
@@ -382,117 +392,99 @@ fun HomeScreen(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // Summary Stats Card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceAround
-                ) {
-                    StatItem(label = "Missed", value = "${state.missedCallsCount}", color = SalimRed)
-                    StatItem(label = "Favorites", value = "${state.favorites.size}", color = SalimYellow)
-                    StatItem(label = "Blocked", value = "${state.blockedNumbersCount}", color = SalimBlue)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
         }
     }
 }
 
 @Composable
-private fun StatItem(label: String, value: String, color: Color) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                fontSize = 22.sp
-            ),
-            color = color
-        )
-        Spacer(modifier = Modifier.height(2.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun HomeQuickAction(
+fun HomeQuickActionTile(
     icon: ImageVector,
     label: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Card(
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val shape = RoundedCornerShape(18.dp)
+
+    Box(
         modifier = modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(14.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+            .height(96.dp)
+            .liquidGlassInteractive(
+                shape = shape,
+                elevation = 2.5.dp,
+                onClick = onClick
+            )
+            .padding(10.dp),
+        contentAlignment = Alignment.Center
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 14.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
             Box(
                 modifier = Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .background(SalimBlue.copy(alpha = 0.12f)),
+                    .size(38.dp)
+                    .liquidGlass(shape = CircleShape, elevation = 1.5.dp, isElevated = true),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = label,
-                    tint = SalimBlue,
+                    tint = textPrimary,
                     modifier = Modifier.size(20.dp)
                 )
             }
-            Spacer(modifier = Modifier.height(6.dp))
+            Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = label,
-                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Medium),
-                color = MaterialTheme.colorScheme.onBackground
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                ),
+                color = textPrimary,
+                maxLines = 1
             )
         }
     }
 }
 
 @Composable
-private fun HomeFavoriteItem(
+fun FavoriteGlassChip(
     contact: ContactItem,
     onClick: () -> Unit
 ) {
-    Column(
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val shape = RoundedCornerShape(16.dp)
+
+    Box(
         modifier = Modifier
-            .width(68.dp)
-            .clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally
+            .width(90.dp)
+            .height(106.dp)
+            .liquidGlassInteractive(shape = shape, elevation = 2.dp, onClick = onClick)
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
     ) {
-        SalimAvatar(
-            name = contact.name,
-            photoUri = contact.photoUri,
-            size = 56.dp
-        )
-        Spacer(modifier = Modifier.height(6.dp))
-        Text(
-            text = contact.name,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1
-        )
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            SalimAvatar(
+                name = contact.name,
+                photoUri = contact.photoUri,
+                size = 46.dp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+            Text(
+                text = contact.name.split(" ").firstOrNull() ?: contact.name,
+                style = MaterialTheme.typography.labelSmall.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 12.sp
+                ),
+                color = textPrimary,
+                maxLines = 1
+            )
+        }
     }
 }

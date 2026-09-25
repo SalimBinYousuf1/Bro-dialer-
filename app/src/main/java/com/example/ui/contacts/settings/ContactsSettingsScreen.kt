@@ -1,8 +1,8 @@
 package com.example.ui.contacts.settings
 
 import android.widget.Toast
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,19 +13,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AccountBox
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CallMerge
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -36,8 +36,6 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -45,10 +43,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberModalBottomSheetState
@@ -61,7 +56,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -70,9 +64,18 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.RecentlyDeletedContact
-import com.example.ui.theme.SalimBlue
-import com.example.ui.theme.SalimGreen
-import com.example.ui.theme.SalimRed
+import com.example.ui.components.SalimBackButton
+import com.example.ui.theme.FrostButton
+import com.example.ui.theme.FrostCard
+import com.example.ui.theme.FrostIconButton
+import com.example.ui.theme.FrostSwitch
+import com.example.ui.theme.GlassBackgroundDark
+import com.example.ui.theme.GlassBackgroundLight
+import com.example.ui.theme.GlassTextPrimaryDark
+import com.example.ui.theme.GlassTextPrimaryLight
+import com.example.ui.theme.GlassTextSecondaryDark
+import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.liquidGlass
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -84,7 +87,11 @@ fun ContactsSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val context = LocalContext.current
+
     val settings by viewModel.settings.collectAsState()
     val recentlyDeleted by viewModel.recentlyDeleted.collectAsState()
     val duplicateCount by viewModel.duplicateCount.collectAsState()
@@ -111,24 +118,19 @@ fun ContactsSettingsScreen(
                 title = {
                     Text(
                         text = "Contacts Settings",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = onBack, modifier = Modifier.testTag("contacts_settings_back")) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBackIos,
-                            contentDescription = "Back",
-                            tint = SalimBlue
-                        )
-                    }
+                    SalimBackButton(onClick = onBack)
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight,
         modifier = modifier.fillMaxSize()
     ) { innerPadding ->
         Column(
@@ -145,19 +147,14 @@ fun ContactsSettingsScreen(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = textMuted,
                 modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
+            FrostCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     ContactsSettingSwitchRow(
                         icon = Icons.Default.Person,
-                        iconTint = SalimBlue,
                         title = "Display profile picture",
                         checked = settings.displayProfilePicture,
                         onCheckedChange = { viewModel.setDisplayProfilePicture(it) },
@@ -165,12 +162,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingSwitchRow(
                         icon = Icons.Default.Phone,
-                        iconTint = SalimGreen,
                         title = "Display number",
                         checked = settings.displayNumber,
                         onCheckedChange = { viewModel.setDisplayNumber(it) },
@@ -178,12 +174,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingSwitchRow(
                         icon = Icons.Default.Business,
-                        iconTint = Color(0xFF5856D6),
                         title = "Display company and title",
                         checked = settings.displayCompanyAndTitle,
                         onCheckedChange = { viewModel.setDisplayCompanyAndTitle(it) },
@@ -191,12 +186,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingSwitchRow(
                         icon = Icons.Default.Phone,
-                        iconTint = Color(0xFFFF9500),
                         title = "Show contacts with numbers only",
                         checked = settings.showNumbersOnly,
                         onCheckedChange = { viewModel.setShowNumbersOnly(it) },
@@ -204,12 +198,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.AccountBox,
-                        iconTint = SalimBlue,
                         title = "Display by account",
                         value = settings.displayByAccount,
                         onClick = { showAccountDialog = true },
@@ -217,12 +210,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.SortByAlpha,
-                        iconTint = Color(0xFFAF52DE),
                         title = "Sort by",
                         value = settings.sortBy,
                         onClick = { showSortDialog = true },
@@ -240,19 +232,14 @@ fun ContactsSettingsScreen(
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.8.sp
                 ),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                color = textMuted,
                 modifier = Modifier.padding(start = 6.dp, bottom = 8.dp)
             )
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
+            FrostCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     ContactsSettingNavRow(
                         icon = Icons.Default.ImportExport,
-                        iconTint = SalimBlue,
                         title = "Import/Export",
                         value = "",
                         onClick = { showImportExportSheet = true },
@@ -260,12 +247,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.ContentCopy,
-                        iconTint = Color(0xFF5856D6),
                         title = "Copy contacts",
                         value = "",
                         onClick = { showCopyContactsDialog = true },
@@ -273,12 +259,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.Save,
-                        iconTint = SalimGreen,
                         title = "Save location",
                         value = settings.saveLocation,
                         onClick = { showSaveLocationDialog = true },
@@ -286,12 +271,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.CallMerge,
-                        iconTint = Color(0xFFFF9500),
                         title = "Merge duplicate contacts",
                         value = if (duplicateCount > 0) "$duplicateCount found" else "None",
                         onClick = { showMergeDialog = true },
@@ -299,12 +283,11 @@ fun ContactsSettingsScreen(
                     )
                     HorizontalDivider(
                         thickness = 0.5.dp,
-                        color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                        color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     ContactsSettingNavRow(
                         icon = Icons.Default.DeleteOutline,
-                        iconTint = SalimRed,
                         title = "Recently deleted",
                         value = if (recentlyDeleted.isNotEmpty()) "${recentlyDeleted.size}" else "Empty",
                         onClick = { showRecentlyDeletedSheet = true },
@@ -322,7 +305,7 @@ fun ContactsSettingsScreen(
         val accounts = listOf("All Accounts", "Phone (Device)", "Google Account", "SIM Card")
         AlertDialog(
             onDismissRequest = { showAccountDialog = false },
-            title = { Text("Display by Account", fontWeight = FontWeight.Bold) },
+            title = { Text("Display by Account", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     accounts.forEach { acc ->
@@ -341,15 +324,19 @@ fun ContactsSettingsScreen(
                                 text = acc,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (settings.displayByAccount == acc) FontWeight.Bold else FontWeight.Normal,
-                                color = if (settings.displayByAccount == acc) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (settings.displayByAccount == acc) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = textPrimary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showAccountDialog = false }) { Text("Close", color = SalimBlue) }
-            }
+                FrostButton(text = "Close", onClick = { showAccountDialog = false })
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -358,7 +345,7 @@ fun ContactsSettingsScreen(
         val sorts = listOf("First name", "Last name")
         AlertDialog(
             onDismissRequest = { showSortDialog = false },
-            title = { Text("Sort by", fontWeight = FontWeight.Bold) },
+            title = { Text("Sort by", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     sorts.forEach { s ->
@@ -377,15 +364,19 @@ fun ContactsSettingsScreen(
                                 text = s,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (settings.sortBy == s) FontWeight.Bold else FontWeight.Normal,
-                                color = if (settings.sortBy == s) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (settings.sortBy == s) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = textPrimary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showSortDialog = false }) { Text("Close", color = SalimBlue) }
-            }
+                FrostButton(text = "Close", onClick = { showSortDialog = false })
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -394,7 +385,7 @@ fun ContactsSettingsScreen(
         val locations = listOf("Phone", "SIM Card", "Device Storage")
         AlertDialog(
             onDismissRequest = { showSaveLocationDialog = false },
-            title = { Text("Save Location", fontWeight = FontWeight.Bold) },
+            title = { Text("Save Location", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     locations.forEach { loc ->
@@ -413,15 +404,19 @@ fun ContactsSettingsScreen(
                                 text = loc,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (settings.saveLocation == loc) FontWeight.Bold else FontWeight.Normal,
-                                color = if (settings.saveLocation == loc) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (settings.saveLocation == loc) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = textPrimary, modifier = Modifier.size(18.dp))
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showSaveLocationDialog = false }) { Text("Close", color = SalimBlue) }
-            }
+                FrostButton(text = "Close", onClick = { showSaveLocationDialog = false })
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -429,32 +424,37 @@ fun ContactsSettingsScreen(
     if (showMergeDialog) {
         AlertDialog(
             onDismissRequest = { showMergeDialog = false },
-            icon = { Icon(Icons.Default.CallMerge, contentDescription = null, tint = Color(0xFFFF9500)) },
-            title = { Text("Merge Duplicate Contacts", fontWeight = FontWeight.Bold) },
+            icon = { Icon(Icons.Default.CallMerge, contentDescription = null, tint = textPrimary) },
+            title = { Text("Merge Duplicate Contacts", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Text(
                     text = if (duplicateCount > 0)
                         "Found $duplicateCount duplicate contact entries. Would you like to merge them into unified contacts?"
                     else
-                        "No duplicate contacts found in your address book."
+                        "No duplicate contacts found in your address book.",
+                    color = textPrimary
                 )
             },
             confirmButton = {
                 if (duplicateCount > 0) {
-                    TextButton(onClick = {
-                        viewModel.mergeDuplicates {
-                            showMergeDialog = false
+                    FrostButton(
+                        text = "Merge",
+                        onClick = {
+                            viewModel.mergeDuplicates {
+                                showMergeDialog = false
+                            }
                         }
-                    }) {
-                        Text("Merge", color = SalimBlue, fontWeight = FontWeight.Bold)
-                    }
+                    )
+                } else {
+                    FrostButton(text = "OK", onClick = { showMergeDialog = false })
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showMergeDialog = false }) {
-                    Text(if (duplicateCount > 0) "Cancel" else "OK", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (duplicateCount > 0) {
+                    FrostButton(text = "Cancel", onClick = { showMergeDialog = false })
                 }
-            }
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -462,34 +462,34 @@ fun ContactsSettingsScreen(
     if (showCopyContactsDialog) {
         AlertDialog(
             onDismissRequest = { showCopyContactsDialog = false },
-            title = { Text("Copy Contacts", fontWeight = FontWeight.Bold) },
+            title = { Text("Copy Contacts", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
-                    Text("Select copy direction:", style = MaterialTheme.typography.bodyMedium)
+                    Text("Select copy direction:", style = MaterialTheme.typography.bodyMedium, color = textPrimary)
                     Spacer(modifier = Modifier.height(12.dp))
-                    TextButton(
+                    FrostButton(
+                        text = "Copy from Phone to SIM",
                         onClick = {
                             showCopyContactsDialog = false
                             Toast.makeText(context, "Contacts copied to SIM card", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Copy from Phone to SIM", color = SalimBlue)
-                    }
-                    TextButton(
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FrostButton(
+                        text = "Copy from SIM to Phone",
                         onClick = {
                             showCopyContactsDialog = false
                             Toast.makeText(context, "Contacts copied from SIM to Phone", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text("Copy from SIM to Phone", color = SalimBlue)
-                    }
+                    )
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCopyContactsDialog = false }) { Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant) }
-            }
+                FrostButton(text = "Cancel", onClick = { showCopyContactsDialog = false })
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -498,7 +498,7 @@ fun ContactsSettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showImportExportSheet = false },
             sheetState = rememberModalBottomSheetState(),
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         ) {
             Column(
                 modifier = Modifier
@@ -507,15 +507,12 @@ fun ContactsSettingsScreen(
             ) {
                 Text(
                     text = "Import / Export Contacts",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = textPrimary
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
+                FrostCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
                         Row(
                             modifier = Modifier
@@ -527,14 +524,14 @@ fun ContactsSettingsScreen(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Save, contentDescription = null, tint = SalimBlue)
+                            Icon(Icons.Default.Save, contentDescription = null, tint = textPrimary)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("Export to .vcf file", fontWeight = FontWeight.SemiBold)
-                                Text("Save contacts to storage as standard vCard file", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Export to .vcf file", fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                Text("Save contacts to storage as standard vCard file", fontSize = 12.sp, color = textMuted)
                             }
                         }
-                        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f))
+                        HorizontalDivider(thickness = 0.5.dp, color = textMuted.copy(alpha = 0.2f))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -545,11 +542,11 @@ fun ContactsSettingsScreen(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.ImportExport, contentDescription = null, tint = SalimGreen)
+                            Icon(Icons.Default.ImportExport, contentDescription = null, tint = textPrimary)
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
-                                Text("Import from .vcf file", fontWeight = FontWeight.SemiBold)
-                                Text("Restore contacts from vCard file in storage", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text("Import from .vcf file", fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                Text("Restore contacts from vCard file in storage", fontSize = 12.sp, color = textMuted)
                             }
                         }
                     }
@@ -564,7 +561,7 @@ fun ContactsSettingsScreen(
         ModalBottomSheet(
             onDismissRequest = { showRecentlyDeletedSheet = false },
             sheetState = rememberModalBottomSheetState(),
-            containerColor = MaterialTheme.colorScheme.background
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         ) {
             Column(
                 modifier = Modifier
@@ -578,19 +575,21 @@ fun ContactsSettingsScreen(
                 ) {
                     Text(
                         text = "Recently Deleted",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                        color = textPrimary
                     )
                     if (recentlyDeleted.isNotEmpty()) {
-                        TextButton(onClick = { viewModel.clearAllRecentlyDeleted() }) {
-                            Text("Clear All", color = SalimRed)
-                        }
+                        FrostButton(
+                            text = "Clear All",
+                            onClick = { viewModel.clearAllRecentlyDeleted() }
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Items in recently deleted can be restored to your contacts.",
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = textMuted
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -604,7 +603,7 @@ fun ContactsSettingsScreen(
                         Text(
                             text = "No recently deleted contacts",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = textMuted
                         )
                     }
                 } else {
@@ -621,7 +620,7 @@ fun ContactsSettingsScreen(
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f)
+                                color = textMuted.copy(alpha = 0.2f)
                             )
                         }
                     }
@@ -635,30 +634,31 @@ fun ContactsSettingsScreen(
 @Composable
 private fun ContactsSettingSwitchRow(
     icon: ImageVector,
-    iconTint: Color,
     title: String,
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     testTag: String
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = textPrimary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = textPrimary,
             modifier = Modifier.weight(1f)
         )
-        Switch(
+        FrostSwitch(
             checked = checked,
             onCheckedChange = onCheckedChange,
-            colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = SalimBlue),
             modifier = Modifier.testTag(testTag)
         )
     }
@@ -667,12 +667,15 @@ private fun ContactsSettingSwitchRow(
 @Composable
 private fun ContactsSettingNavRow(
     icon: ImageVector,
-    iconTint: Color,
     title: String,
     value: String,
     onClick: () -> Unit,
     testTag: String
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -681,26 +684,26 @@ private fun ContactsSettingNavRow(
             .testTag(testTag),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = textPrimary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = title,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = textPrimary,
             modifier = Modifier.weight(1f)
         )
         if (value.isNotBlank()) {
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = textMuted,
                 modifier = Modifier.padding(end = 6.dp)
             )
         }
         Icon(
             imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = textMuted.copy(alpha = 0.5f),
             modifier = Modifier.size(14.dp)
         )
     }
@@ -712,6 +715,10 @@ private fun RecentlyDeletedRow(
     onRestore: () -> Unit,
     onDeletePermanently: () -> Unit
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
+
     val dateStr = remember(item.deletedTimestamp) {
         SimpleDateFormat("MMM d, HH:mm", Locale.getDefault()).format(Date(item.deletedTimestamp))
     }
@@ -724,30 +731,38 @@ private fun RecentlyDeletedRow(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFE5E5EA)),
+                .liquidGlass(shape = CircleShape, elevation = 2.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = item.name.take(1).uppercase(),
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF636366)
+                color = textPrimary
             )
         }
         Spacer(modifier = Modifier.width(12.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = item.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+            Text(text = item.name, fontWeight = FontWeight.SemiBold, fontSize = 16.sp, color = textPrimary)
             Text(
                 text = "${item.phoneNumbers.split(",").firstOrNull() ?: ""} • $dateStr",
                 fontSize = 12.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = textMuted
             )
         }
-        IconButton(onClick = onRestore, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.Restore, contentDescription = "Restore", tint = SalimBlue)
-        }
-        IconButton(onClick = onDeletePermanently, modifier = Modifier.size(36.dp)) {
-            Icon(Icons.Default.Delete, contentDescription = "Delete Permanently", tint = SalimRed)
-        }
+        FrostIconButton(
+            icon = Icons.Default.Restore,
+            contentDescription = "Restore",
+            onClick = onRestore,
+            size = 36.dp,
+            iconSize = 18.dp
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        FrostIconButton(
+            icon = Icons.Default.Delete,
+            contentDescription = "Delete Permanently",
+            onClick = onDeletePermanently,
+            size = 36.dp,
+            iconSize = 18.dp
+        )
     }
 }

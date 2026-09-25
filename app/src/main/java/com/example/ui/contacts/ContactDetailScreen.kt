@@ -4,8 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,28 +16,27 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBackIos
-import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallMade
 import androidx.compose.material.icons.filled.CallMissed
 import androidx.compose.material.icons.filled.CallReceived
 import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.MusicNote
-import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
@@ -46,20 +45,15 @@ import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -89,10 +83,17 @@ import com.example.ui.components.SalimAvatar
 import com.example.ui.components.SalimAvatarPickerSheet
 import com.example.ui.components.SalimBackButton
 import com.example.ui.components.SalimConfirmationDialog
-import com.example.ui.theme.SalimBlue
-import com.example.ui.theme.SalimGreen
-import com.example.ui.theme.SalimRed
-import com.example.ui.theme.SalimYellow
+import com.example.ui.theme.FrostButton
+import com.example.ui.theme.FrostCard
+import com.example.ui.theme.FrostIconButton
+import com.example.ui.theme.FrostInteractiveCard
+import com.example.ui.theme.GlassBackgroundDark
+import com.example.ui.theme.GlassBackgroundLight
+import com.example.ui.theme.GlassTextPrimaryDark
+import com.example.ui.theme.GlassTextPrimaryLight
+import com.example.ui.theme.GlassTextSecondaryDark
+import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.liquidGlass
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -107,6 +108,9 @@ fun ContactDetailScreen(
     onEditContact: (Long) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
@@ -145,6 +149,7 @@ fun ContactDetailScreen(
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
+        containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight,
         topBar = {
             TopAppBar(
                 title = {},
@@ -152,26 +157,20 @@ fun ContactDetailScreen(
                     SalimBackButton(onClick = onBack)
                 },
                 actions = {
-                    TextButton(
+                    FrostButton(
+                        text = "Edit",
                         onClick = { onEditContact(contactId) },
-                        modifier = Modifier.testTag("contact_edit_button")
-                    ) {
-                        Text(
-                            text = "Edit",
-                            color = SalimBlue,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
-                        )
-                    }
+                        testTag = "contact_edit_button"
+                    )
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = Color.Transparent
                 )
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { padding ->
-        Surface(
-            color = MaterialTheme.colorScheme.background,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -182,7 +181,7 @@ fun ContactDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = SalimBlue)
+                    CircularProgressIndicator(color = textPrimary)
                 }
             } else {
                 Column(
@@ -195,7 +194,7 @@ fun ContactDetailScreen(
                     // Contact Avatar (Clickable to change)
                     Box(
                         modifier = Modifier
-                            .size(100.dp)
+                            .size(104.dp)
                             .clip(CircleShape)
                             .clickable { showAvatarPicker = true }
                             .testTag("contact_avatar_picker_trigger"),
@@ -208,16 +207,14 @@ fun ContactDetailScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = "Change Photo",
-                        style = MaterialTheme.typography.labelSmall.copy(color = SalimBlue, fontWeight = FontWeight.SemiBold),
-                        modifier = Modifier
-                            .clickable { showAvatarPicker = true }
-                            .padding(4.dp)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FrostButton(
+                        text = if (currentContact.photoUri != null) "Edit Photo" else "Add Photo",
+                        onClick = { showAvatarPicker = true },
+                        testTag = "change_photo_button"
                     )
 
-                    Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Contact Name
                     Text(
@@ -226,18 +223,18 @@ fun ContactDetailScreen(
                             fontWeight = FontWeight.Bold,
                             fontSize = 24.sp
                         ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = textPrimary
                     )
                     if (!currentContact.organization.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = currentContact.organization ?: "",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            color = textMuted
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(22.dp))
 
                     val cleanNumber = currentContact.primaryNumber.replace("[^0-9+]".toRegex(), "")
 
@@ -272,7 +269,7 @@ fun ContactDetailScreen(
                         )
                     }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(14.dp))
 
                     // Connected Apps Row (WhatsApp, Telegram, Share)
                     Row(
@@ -282,7 +279,6 @@ fun ContactDetailScreen(
                         ActionTile(
                             icon = Icons.Default.Chat,
                             label = "WhatsApp",
-                            tint = SalimGreen,
                             enabled = cleanNumber.isNotBlank(),
                             onClick = {
                                 try {
@@ -299,7 +295,6 @@ fun ContactDetailScreen(
                         ActionTile(
                             icon = Icons.Default.Send,
                             label = "Telegram",
-                            tint = SalimBlue,
                             enabled = cleanNumber.isNotBlank(),
                             onClick = {
                                 try {
@@ -341,16 +336,12 @@ fun ContactDetailScreen(
 
                     // Phone numbers card
                     if (currentContact.numbers.isNotEmpty()) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = RoundedCornerShape(16.dp),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                        ) {
+                        FrostCard(modifier = Modifier.fillMaxWidth()) {
                             Column(modifier = Modifier.padding(16.dp)) {
                                 Text(
                                     text = "Phone Numbers",
                                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    color = textMuted
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 currentContact.numbers.forEachIndexed { index, phone ->
@@ -358,7 +349,7 @@ fun ContactDetailScreen(
                                         HorizontalDivider(
                                             modifier = Modifier.padding(vertical = 10.dp),
                                             thickness = 0.5.dp,
-                                            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                            color = textMuted.copy(alpha = 0.2f)
                                         )
                                     }
                                     Row(
@@ -372,32 +363,28 @@ fun ContactDetailScreen(
                                             Text(
                                                 text = phone.type,
                                                 style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                color = textMuted
                                             )
                                             Text(
                                                 text = phone.number,
                                                 style = MaterialTheme.typography.bodyLarge.copy(
-                                                    color = SalimBlue,
+                                                    color = textPrimary,
                                                     fontWeight = FontWeight.Medium
                                                 )
                                             )
                                         }
-                                        IconButton(
+                                        FrostIconButton(
+                                            icon = Icons.Default.ContentCopy,
+                                            contentDescription = "Copy number",
+                                            size = 36.dp,
+                                            iconSize = 16.dp,
                                             onClick = {
                                                 clipboardManager.setText(AnnotatedString(phone.number))
                                                 scope.launch {
                                                     snackbarHostState.showSnackbar("Number copied to clipboard")
                                                 }
-                                            },
-                                            modifier = Modifier.size(36.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Share,
-                                                contentDescription = "Copy number",
-                                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                        }
+                                            }
+                                        )
                                     }
                                 }
                             }
@@ -406,11 +393,7 @@ fun ContactDetailScreen(
                     }
 
                     // Call History Dropdown Card
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
+                    FrostCard(modifier = Modifier.fillMaxWidth()) {
                         Column {
                             Row(
                                 modifier = Modifier
@@ -424,27 +407,28 @@ fun ContactDetailScreen(
                                     Icon(
                                         imageVector = Icons.Default.History,
                                         contentDescription = null,
-                                        tint = SalimBlue,
+                                        tint = textPrimary,
                                         modifier = Modifier.size(20.dp)
                                     )
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Text(
                                         text = "Call History",
-                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold)
+                                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = textPrimary
                                     )
                                     if (contactCallLogs.isNotEmpty()) {
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(
                                             text = "(${contactCallLogs.size})",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            color = textMuted
                                         )
                                     }
                                 }
                                 Icon(
                                     imageVector = if (callHistoryExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
                                     contentDescription = if (callHistoryExpanded) "Collapse" else "Expand",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    tint = textMuted
                                 )
                             }
 
@@ -454,7 +438,7 @@ fun ContactDetailScreen(
                                         Text(
                                             text = "No prior call records found with this contact.",
                                             style = MaterialTheme.typography.bodySmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            color = textMuted,
                                             modifier = Modifier.padding(vertical = 8.dp)
                                         )
                                     } else {
@@ -462,7 +446,7 @@ fun ContactDetailScreen(
                                             if (idx > 0) {
                                                 HorizontalDivider(
                                                     thickness = 0.5.dp,
-                                                    color = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                                                    color = textMuted.copy(alpha = 0.2f),
                                                     modifier = Modifier.padding(vertical = 6.dp)
                                                 )
                                             }
@@ -472,14 +456,14 @@ fun ContactDetailScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    val (callIcon, iconTint) = when (record.type) {
-                                                        CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed to SalimRed
-                                                        CallType.OUTGOING -> Icons.Default.CallMade to SalimBlue
-                                                        CallType.INCOMING -> Icons.Default.CallReceived to SalimGreen
-                                                        CallType.BLOCKED -> Icons.Default.Block to SalimRed
-                                                        CallType.VOICEMAIL -> Icons.Default.Call to SalimBlue
+                                                    val callIcon = when (record.type) {
+                                                        CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed
+                                                        CallType.OUTGOING -> Icons.Default.CallMade
+                                                        CallType.INCOMING -> Icons.Default.CallReceived
+                                                        CallType.BLOCKED -> Icons.Default.Block
+                                                        CallType.VOICEMAIL -> Icons.Default.Call
                                                     }
-                                                    Icon(imageVector = callIcon, contentDescription = null, tint = iconTint, modifier = Modifier.size(16.dp))
+                                                    Icon(imageVector = callIcon, contentDescription = null, tint = textPrimary, modifier = Modifier.size(16.dp))
                                                     Spacer(modifier = Modifier.width(8.dp))
                                                     Column {
                                                         Text(
@@ -491,7 +475,8 @@ fun ContactDetailScreen(
                                                                 CallType.BLOCKED -> "Blocked"
                                                                 CallType.VOICEMAIL -> "Voicemail"
                                                             },
-                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium)
+                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                            color = textPrimary
                                                         )
                                                         val timeStr = remember(record.date) {
                                                             SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(record.date))
@@ -499,7 +484,7 @@ fun ContactDetailScreen(
                                                         Text(
                                                             text = timeStr,
                                                             style = MaterialTheme.typography.bodySmall,
-                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                            color = textMuted
                                                         )
                                                     }
                                                 }
@@ -507,7 +492,7 @@ fun ContactDetailScreen(
                                                     Text(
                                                         text = record.formattedDuration,
                                                         style = MaterialTheme.typography.bodySmall,
-                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        color = textMuted
                                                     )
                                                 }
                                             }
@@ -521,39 +506,32 @@ fun ContactDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Audio & Call Customization Card (Ringtone, Background, SIM)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
+                    FrostCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
                             ContactPreferenceRow(
                                 icon = Icons.Default.MusicNote,
-                                iconTint = SalimBlue,
                                 title = "Ringtone",
                                 subtitle = selectedRingtone,
                                 onClick = { showRingtoneDialog = true }
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             ContactPreferenceRow(
                                 icon = Icons.Default.Photo,
-                                iconTint = Color(0xFFAF52DE),
                                 title = "Call background",
                                 subtitle = selectedBackground,
                                 onClick = { showCallBackgroundDialog = true }
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             ContactPreferenceRow(
                                 icon = Icons.Default.SimCard,
-                                iconTint = SalimGreen,
                                 title = "Default calling SIM",
                                 subtitle = selectedSim,
                                 onClick = { showSimDialog = true }
@@ -564,38 +542,31 @@ fun ContactDetailScreen(
                     Spacer(modifier = Modifier.height(16.dp))
 
                     // Actions Card (Favorite, Share, Block, Delete)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                    ) {
+                    FrostCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
                             DetailActionRow(
                                 icon = if (currentContact.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
                                 label = if (currentContact.isFavorite) "Remove from Favorites" else "Add to Favorites",
-                                iconColor = if (currentContact.isFavorite) SalimYellow else MaterialTheme.colorScheme.onSurfaceVariant,
                                 onClick = { viewModel.toggleFavorite(currentContact) }
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             DetailActionRow(
                                 icon = Icons.Default.Block,
                                 label = "Block Contact",
-                                isDestructive = true,
                                 onClick = { showBlockDialog = true }
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
-                                color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f),
+                                color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
                             DetailActionRow(
                                 icon = Icons.Default.Delete,
                                 label = "Delete Contact",
-                                isDestructive = true,
                                 onClick = { showDeleteDialog = true }
                             )
                         }
@@ -612,7 +583,7 @@ fun ContactDetailScreen(
         val ringtones = listOf("Follow system", "Salim Bell", "Marimba", "Reflection", "Classic Bell", "Silk", "Strum")
         AlertDialog(
             onDismissRequest = { showRingtoneDialog = false },
-            title = { Text("Select Ringtone", fontWeight = FontWeight.Bold) },
+            title = { Text("Select Ringtone", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     ringtones.forEach { tone ->
@@ -623,7 +594,7 @@ fun ContactDetailScreen(
                                     selectedRingtone = tone
                                     showRingtoneDialog = false
                                 }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -631,24 +602,36 @@ fun ContactDetailScreen(
                                 text = tone,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (selectedRingtone == tone) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedRingtone == tone) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (selectedRingtone == tone) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showRingtoneDialog = false }) { Text("Done", color = SalimBlue) }
-            }
+                FrostButton(
+                    text = "Done",
+                    onClick = { showRingtoneDialog = false }
+                )
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
     // DIALOG: Call Background Selector
     if (showCallBackgroundDialog) {
-        val bgs = listOf("Contact photo priority", "Custom Wallpaper", "Default Dark Glass")
+        val bgs = listOf("Contact photo priority", "Custom Wallpaper", "Default Frost Glass")
         AlertDialog(
             onDismissRequest = { showCallBackgroundDialog = false },
-            title = { Text("Call Background", fontWeight = FontWeight.Bold) },
+            title = { Text("Call Background", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     bgs.forEach { bg ->
@@ -659,7 +642,7 @@ fun ContactDetailScreen(
                                     selectedBackground = bg
                                     showCallBackgroundDialog = false
                                 }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -667,15 +650,27 @@ fun ContactDetailScreen(
                                 text = bg,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (selectedBackground == bg) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedBackground == bg) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (selectedBackground == bg) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showCallBackgroundDialog = false }) { Text("Done", color = SalimBlue) }
-            }
+                FrostButton(
+                    text = "Done",
+                    onClick = { showCallBackgroundDialog = false }
+                )
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -684,7 +679,7 @@ fun ContactDetailScreen(
         val sims = listOf("Follow system", "SIM 1", "SIM 2")
         AlertDialog(
             onDismissRequest = { showSimDialog = false },
-            title = { Text("Default Calling SIM", fontWeight = FontWeight.Bold) },
+            title = { Text("Default Calling SIM", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
                     sims.forEach { sim ->
@@ -695,7 +690,7 @@ fun ContactDetailScreen(
                                     selectedSim = sim
                                     showSimDialog = false
                                 }
-                                .padding(vertical = 10.dp),
+                                .padding(vertical = 12.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
@@ -703,15 +698,27 @@ fun ContactDetailScreen(
                                 text = sim,
                                 style = MaterialTheme.typography.bodyLarge,
                                 fontWeight = if (selectedSim == sim) FontWeight.Bold else FontWeight.Normal,
-                                color = if (selectedSim == sim) SalimBlue else MaterialTheme.colorScheme.onSurface
+                                color = textPrimary
                             )
+                            if (selectedSim == sim) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = textPrimary,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
                         }
                     }
                 }
             },
             confirmButton = {
-                TextButton(onClick = { showSimDialog = false }) { Text("Done", color = SalimBlue) }
-            }
+                FrostButton(
+                    text = "Done",
+                    onClick = { showSimDialog = false }
+                )
+            },
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
         )
     }
 
@@ -768,11 +775,14 @@ fun ContactDetailScreen(
 @Composable
 private fun ContactPreferenceRow(
     icon: ImageVector,
-    iconTint: Color,
     title: String,
     subtitle: String,
     onClick: () -> Unit
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -780,24 +790,24 @@ private fun ContactPreferenceRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(imageVector = icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(22.dp))
+        Icon(imageVector = icon, contentDescription = null, tint = textPrimary, modifier = Modifier.size(22.dp))
         Spacer(modifier = Modifier.width(14.dp))
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = MaterialTheme.colorScheme.onBackground
+                color = textPrimary
             )
             Text(
                 text = subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = textMuted
             )
         }
         Icon(
             imageVector = Icons.Default.KeyboardArrowDown,
             contentDescription = "Select $title",
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            tint = textMuted,
             modifier = Modifier.size(18.dp)
         )
     }
@@ -808,36 +818,33 @@ private fun ActionTile(
     icon: ImageVector,
     label: String,
     enabled: Boolean = true,
-    tint: Color = SalimBlue,
     onClick: () -> Unit
 ) {
-    val alpha = if (enabled) 1f else 0.4f
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+        modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(46.dp)
-                .clip(CircleShape)
-                .background(tint.copy(alpha = if (enabled) 0.12f else 0.05f)),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = tint.copy(alpha = alpha),
-                modifier = Modifier.size(22.dp)
-            )
-        }
-        Spacer(modifier = Modifier.height(4.dp))
+        FrostIconButton(
+            icon = icon,
+            contentDescription = label,
+            onClick = onClick,
+            enabled = enabled,
+            size = 52.dp,
+            iconSize = 24.dp,
+            elevation = 2.dp
+        )
+        Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = alpha)
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = FontWeight.Medium,
+                fontSize = 12.sp
+            ),
+            color = if (enabled) textPrimary else textMuted
         )
     }
 }
@@ -846,12 +853,10 @@ private fun ActionTile(
 private fun DetailActionRow(
     icon: ImageVector,
     label: String,
-    iconColor: Color = SalimBlue,
-    isDestructive: Boolean = false,
     onClick: () -> Unit
 ) {
-    val textColor = if (isDestructive) SalimRed else MaterialTheme.colorScheme.onBackground
-    val finalIconColor = if (isDestructive) SalimRed else iconColor
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
 
     Row(
         modifier = Modifier
@@ -863,15 +868,15 @@ private fun DetailActionRow(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = finalIconColor,
+            tint = textPrimary,
             modifier = Modifier.size(22.dp)
         )
         Spacer(modifier = Modifier.width(14.dp))
         Text(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
-            color = textColor,
-            fontWeight = if (isDestructive) FontWeight.Medium else FontWeight.Normal
+            color = textPrimary,
+            fontWeight = FontWeight.Normal
         )
     }
 }

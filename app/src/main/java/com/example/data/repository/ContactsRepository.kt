@@ -1,12 +1,15 @@
 package com.example.data.repository
 
+import android.Manifest
 import android.content.ContentProviderOperation
 import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
+import android.content.pm.PackageManager
 import android.database.Cursor
 import android.net.Uri
 import android.provider.ContactsContract
+import androidx.core.content.ContextCompat
 import com.example.data.model.ContactItem
 import com.example.data.model.ContactPhoneNumber
 import com.example.domain.usecase.PhoneNumberHelper
@@ -23,47 +26,52 @@ class ContactsRepository(private val context: Context) {
     }.flowOn(Dispatchers.IO)
 
     suspend fun loadContacts(): List<ContactItem> = withContext(Dispatchers.IO) {
-        val contactsMap = mutableMapOf<Long, ContactItemBuilder>()
-
-        val projection = arrayOf(
-            ContactsContract.Contacts._ID,
-            ContactsContract.Contacts.LOOKUP_KEY,
-            ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
-            ContactsContract.Contacts.PHOTO_URI,
-            ContactsContract.Contacts.STARRED
-        )
-
-        val cursor = context.contentResolver.query(
-            ContactsContract.Contacts.CONTENT_URI,
-            projection,
-            null,
-            null,
-            "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} COLLATE NOCASE ASC"
-        )
-
-        cursor?.use { c ->
-            val idIdx = c.getColumnIndex(ContactsContract.Contacts._ID)
-            val lookupIdx = c.getColumnIndex(ContactsContract.Contacts.LOOKUP_KEY)
-            val nameIdx = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
-            val photoIdx = c.getColumnIndex(ContactsContract.Contacts.PHOTO_URI)
-            val starredIdx = c.getColumnIndex(ContactsContract.Contacts.STARRED)
-
-            while (c.moveToNext()) {
-                val id = c.getLong(idIdx)
-                val lookup = if (lookupIdx != -1) c.getString(lookupIdx) ?: "" else ""
-                val name = if (nameIdx != -1) c.getString(nameIdx) ?: "Unknown" else "Unknown"
-                val photo = if (photoIdx != -1) c.getString(photoIdx) else null
-                val starred = if (starredIdx != -1) c.getInt(starredIdx) == 1 else false
-
-                contactsMap[id] = ContactItemBuilder(
-                    id = id,
-                    lookupKey = lookup,
-                    name = name,
-                    photoUri = photo,
-                    isFavorite = starred
-                )
-            }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext emptyList()
         }
+
+        try {
+            val contactsMap = mutableMapOf<Long, ContactItemBuilder>()
+
+            val projection = arrayOf(
+                ContactsContract.Contacts._ID,
+                ContactsContract.Contacts.LOOKUP_KEY,
+                ContactsContract.Contacts.DISPLAY_NAME_PRIMARY,
+                ContactsContract.Contacts.PHOTO_URI,
+                ContactsContract.Contacts.STARRED
+            )
+
+            val cursor = context.contentResolver.query(
+                ContactsContract.Contacts.CONTENT_URI,
+                projection,
+                null,
+                null,
+                "${ContactsContract.Contacts.DISPLAY_NAME_PRIMARY} COLLATE NOCASE ASC"
+            )
+
+            cursor?.use { c ->
+                val idIdx = c.getColumnIndex(ContactsContract.Contacts._ID)
+                val lookupIdx = c.getColumnIndex(ContactsContract.Contacts.LOOKUP_KEY)
+                val nameIdx = c.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME_PRIMARY)
+                val photoIdx = c.getColumnIndex(ContactsContract.Contacts.PHOTO_URI)
+                val starredIdx = c.getColumnIndex(ContactsContract.Contacts.STARRED)
+
+                while (c.moveToNext()) {
+                    val id = c.getLong(idIdx)
+                    val lookup = if (lookupIdx != -1) c.getString(lookupIdx) ?: "" else ""
+                    val name = if (nameIdx != -1) c.getString(nameIdx) ?: "Unknown" else "Unknown"
+                    val photo = if (photoIdx != -1) c.getString(photoIdx) else null
+                    val starred = if (starredIdx != -1) c.getInt(starredIdx) == 1 else false
+
+                    contactsMap[id] = ContactItemBuilder(
+                        id = id,
+                        lookupKey = lookup,
+                        name = name,
+                        photoUri = photo,
+                        isFavorite = starred
+                    )
+                }
+            }
 
         // Now load phone numbers in bulk
         val phoneProjection = arrayOf(
@@ -122,47 +130,60 @@ class ContactsRepository(private val context: Context) {
         }
 
         contactsMap.values.map { it.build() }.sortedBy { it.name.lowercase() }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            emptyList()
+        }
     }
 
     suspend fun getContactDetails(contactId: Long): ContactItem? = withContext(Dispatchers.IO) {
-        val all = loadContacts()
-        val found = all.find { it.id == contactId } ?: return@withContext null
-
-        // Load emails, org, note
-        val emails = mutableListOf<String>()
-        var organization: String? = null
-        var note: String? = null
-
-        val emailCursor = context.contentResolver.query(
-            ContactsContract.CommonDataKinds.Email.CONTENT_URI,
-            arrayOf(ContactsContract.CommonDataKinds.Email.ADDRESS),
-            "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
-            arrayOf(contactId.toString()),
-            null
-        )
-        emailCursor?.use {
-            val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)
-            while (it.moveToNext()) {
-                if (idx != -1) emails.add(it.getString(idx) ?: "")
-            }
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext null
         }
 
-        // Load organization
-        val orgCursor = context.contentResolver.query(
-            ContactsContract.Data.CONTENT_URI,
-            arrayOf(ContactsContract.CommonDataKinds.Organization.COMPANY),
-            "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
-            arrayOf(contactId.toString(), ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE),
-            null
-        )
-        orgCursor?.use {
-            if (it.moveToFirst()) {
-                val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Organization.COMPANY)
-                if (idx != -1) organization = it.getString(idx)
-            }
-        }
+        try {
+            val all = loadContacts()
+            val found = all.find { it.id == contactId } ?: return@withContext null
 
-        found.copy(emails = emails.filter { it.isNotBlank() }, organization = organization, note = note)
+            // Load emails, org, note
+            val emails = mutableListOf<String>()
+            var organization: String? = null
+            var note: String? = null
+
+            val emailCursor = context.contentResolver.query(
+                ContactsContract.CommonDataKinds.Email.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Email.ADDRESS),
+                "${ContactsContract.CommonDataKinds.Email.CONTACT_ID} = ?",
+                arrayOf(contactId.toString()),
+                null
+            )
+            emailCursor?.use {
+                val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Email.ADDRESS)
+                while (it.moveToNext()) {
+                    if (idx != -1) emails.add(it.getString(idx) ?: "")
+                }
+            }
+
+            // Load organization
+            val orgCursor = context.contentResolver.query(
+                ContactsContract.Data.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Organization.COMPANY),
+                "${ContactsContract.Data.CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                arrayOf(contactId.toString(), ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE),
+                null
+            )
+            orgCursor?.use {
+                if (it.moveToFirst()) {
+                    val idx = it.getColumnIndex(ContactsContract.CommonDataKinds.Organization.COMPANY)
+                    if (idx != -1) organization = it.getString(idx)
+                }
+            }
+
+            found.copy(emails = emails.filter { it.isNotBlank() }, organization = organization, note = note)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
+        }
     }
 
     suspend fun toggleFavorite(contactId: Long, isFavorite: Boolean): Boolean = withContext(Dispatchers.IO) {

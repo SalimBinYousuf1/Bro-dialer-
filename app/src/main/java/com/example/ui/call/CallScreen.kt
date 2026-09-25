@@ -48,6 +48,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.example.ui.theme.liquidGlassInteractive
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -80,6 +81,7 @@ import com.example.ui.theme.SalimBlue
 import com.example.ui.theme.SalimGreen
 import com.example.ui.theme.SalimRed
 import com.example.ui.theme.SalimWhite
+import com.example.ui.theme.liquidGlassInteractive
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -347,23 +349,19 @@ fun CallScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp),
+                        .padding(bottom = 14.dp),
                     horizontalArrangement = Arrangement.SpaceAround,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     CallActionButton(
                         icon = Icons.Default.CallEnd,
                         label = "Decline",
-                        backgroundColor = SalimRed,
-                        iconTint = SalimWhite,
                         onClick = onDecline,
                         testTag = "call_decline_button"
                     )
                     CallActionButton(
                         icon = Icons.Default.Call,
                         label = "Accept",
-                        backgroundColor = SalimGreen,
-                        iconTint = SalimWhite,
                         onClick = onAnswer,
                         testTag = "call_answer_button"
                     )
@@ -371,18 +369,21 @@ fun CallScreen(
             } else {
                 Box(
                     modifier = Modifier
-                        .padding(bottom = 12.dp)
-                        .size(72.dp)
-                        .clip(CircleShape)
-                        .background(SalimRed)
-                        .clickable(onClick = onDecline)
-                        .testTag("call_end_button"),
+                        .padding(bottom = 14.dp)
+                        .size(74.dp)
+                        .liquidGlassInteractive(
+                            shape = CircleShape,
+                            elevation = 4.dp,
+                            isElevated = true,
+                            testTag = "call_end_button",
+                            onClick = onDecline
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.CallEnd,
                         contentDescription = "End Call",
-                        tint = SalimWhite,
+                        tint = Color.White,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -514,29 +515,35 @@ private fun InCallIconButton(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .testTag(testTag)
+        modifier = Modifier.padding(4.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(64.dp)
-                .clip(CircleShape)
-                .background(if (isActive) Color.White else Color(0xFF2C2C2E)),
+                .liquidGlassInteractive(
+                    shape = CircleShape,
+                    elevation = if (isActive) 4.dp else 2.dp,
+                    isElevated = isActive,
+                    testTag = testTag,
+                    onClick = onClick
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isActive) Color.Black else Color.White,
+                tint = Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
         Spacer(modifier = Modifier.height(6.dp))
         Text(
             text = label,
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 12.sp),
-            color = Color.White.copy(alpha = 0.9f)
+            style = MaterialTheme.typography.labelSmall.copy(
+                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                fontSize = 12.sp
+            ),
+            color = Color.White.copy(alpha = if (isActive) 1f else 0.8f)
         )
     }
 }
@@ -786,28 +793,29 @@ private fun InCallKeypadOverlay(
 private fun CallActionButton(
     icon: ImageVector,
     label: String,
-    backgroundColor: Color,
-    iconTint: Color,
     onClick: () -> Unit,
     testTag: String
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clickable(onClick = onClick)
-            .testTag(testTag)
+        modifier = Modifier.padding(horizontal = 12.dp)
     ) {
         Box(
             modifier = Modifier
                 .size(72.dp)
-                .clip(CircleShape)
-                .background(backgroundColor),
+                .liquidGlassInteractive(
+                    shape = CircleShape,
+                    elevation = 4.dp,
+                    isElevated = true,
+                    testTag = testTag,
+                    onClick = onClick
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = iconTint,
+                tint = Color.White,
                 modifier = Modifier.size(32.dp)
             )
         }

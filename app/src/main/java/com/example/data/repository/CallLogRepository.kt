@@ -1,8 +1,11 @@
 package com.example.data.repository
 
+import android.Manifest
 import android.content.ContentUris
 import android.content.Context
+import android.content.pm.PackageManager
 import android.provider.CallLog
+import androidx.core.content.ContextCompat
 import com.example.data.model.CallRecord
 import com.example.data.model.CallType
 import kotlinx.coroutines.Dispatchers
@@ -11,6 +14,10 @@ import kotlinx.coroutines.withContext
 class CallLogRepository(private val context: Context) {
 
     suspend fun loadCallLogs(): List<CallRecord> = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext emptyList()
+        }
+
         val list = mutableListOf<CallRecord>()
 
         val projection = arrayOf(

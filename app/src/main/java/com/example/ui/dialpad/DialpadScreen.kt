@@ -3,10 +3,10 @@ package com.example.ui.dialpad
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -27,18 +28,20 @@ import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -46,10 +49,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.usecase.PhoneNumberHelper
 import com.example.ui.components.SalimAvatar
-import com.example.ui.theme.SalimBlue
-import com.example.ui.theme.SalimGreen
-import com.example.ui.theme.SalimKeypadBackground
-import com.example.ui.theme.SalimWhite
+import com.example.ui.theme.FrostButton
+import com.example.ui.theme.FrostIconButton
+import com.example.ui.theme.GlassBackgroundDark
+import com.example.ui.theme.GlassBackgroundLight
+import com.example.ui.theme.GlassTextPrimaryDark
+import com.example.ui.theme.GlassTextPrimaryLight
+import com.example.ui.theme.GlassTextSecondaryDark
+import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.liquidGlass
+import com.example.ui.theme.liquidGlassInteractive
+import kotlinx.coroutines.delay
 
 data class KeypadButtonDef(
     val digit: Char,
@@ -57,15 +67,18 @@ data class KeypadButtonDef(
     val testTag: String
 )
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun DialpadScreen(
     viewModel: DialpadViewModel,
     onAddContact: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = isSystemInDarkTheme()
     val enteredNumber by viewModel.enteredNumber.collectAsState()
     val matchedContacts by viewModel.matchedContacts.collectAsState()
+
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
     val keyDefs = listOf(
         listOf(
@@ -90,18 +103,18 @@ fun DialpadScreen(
         )
     )
 
-    Surface(
-        color = MaterialTheme.colorScheme.background,
-        modifier = modifier.fillMaxSize()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 8.dp)
     ) {
         Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 24.dp),
+            modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Top Section: T9 Matches & Number display
+            // Top Section: T9 Matches & Phone Number display
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -122,31 +135,32 @@ fun DialpadScreen(
                         horizontalArrangement = Arrangement.Center
                     ) {
                         items(matchedContacts.take(5)) { match ->
-                            Surface(
-                                shape = RoundedCornerShape(18.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
+                            val pillShape = RoundedCornerShape(18.dp)
+                            Box(
                                 modifier = Modifier
                                     .padding(horizontal = 4.dp)
-                                    .testTag("t9_match_${match.contact.id}"),
-                                onClick = {
-                                    val phone = match.matchedPhone ?: match.contact.primaryNumber
-                                    viewModel.setNumber(phone)
-                                }
+                                    .liquidGlassInteractive(
+                                        shape = pillShape,
+                                        elevation = 2.dp,
+                                        testTag = "t9_match_${match.contact.id}",
+                                        onClick = {
+                                            val phone = match.matchedPhone ?: match.contact.primaryNumber
+                                            viewModel.setNumber(phone)
+                                        }
+                                    )
+                                    .padding(horizontal = 12.dp, vertical = 6.dp)
                             ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
                                     SalimAvatar(
                                         name = match.contact.name,
                                         photoUri = match.contact.photoUri,
-                                        size = 28.dp
+                                        size = 26.dp
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
                                     Text(
                                         text = match.contact.name,
                                         style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = textPrimary
                                     )
                                 }
                             }
@@ -154,14 +168,15 @@ fun DialpadScreen(
                     }
                 }
 
-                // Number text
+                // Number text formatted
                 Text(
                     text = if (enteredNumber.isEmpty()) " " else PhoneNumberHelper.formatForDisplay(enteredNumber),
                     style = MaterialTheme.typography.displayLarge.copy(
-                        fontWeight = FontWeight.Light,
-                        fontSize = if (enteredNumber.length > 11) 28.sp else 36.sp
+                        fontWeight = FontWeight.Normal,
+                        fontSize = if (enteredNumber.length > 11) 28.sp else 38.sp,
+                        letterSpacing = 1.sp
                     ),
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = textPrimary,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                     modifier = Modifier
@@ -175,32 +190,25 @@ fun DialpadScreen(
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    TextButton(
-                        onClick = { onAddContact(enteredNumber) },
-                        modifier = Modifier.testTag("dial_add_contact_button")
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PersonAdd,
-                            contentDescription = null,
-                            tint = SalimBlue,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
+                    Box(modifier = Modifier.padding(top = 8.dp)) {
+                        FrostButton(
                             text = "Add Number",
-                            style = MaterialTheme.typography.labelLarge,
-                            color = SalimBlue
+                            icon = Icons.Default.PersonAdd,
+                            onClick = { onAddContact(enteredNumber) },
+                            testTag = "dial_add_contact_button"
                         )
                     }
                 }
             }
 
+            Spacer(modifier = Modifier.height(10.dp))
+
             // Keypad Grid (3x4)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 keyDefs.forEach { row ->
@@ -209,12 +217,15 @@ fun DialpadScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         row.forEach { def ->
-                            DialpadKey(
+                            DialpadGlassKey(
                                 def = def,
                                 onClick = { viewModel.appendDigit(def.digit) },
                                 onLongClick = {
                                     if (def.digit == '0') {
                                         viewModel.appendDigit('+')
+                                    } else if (def.digit == '1') {
+                                        // Voicemail shortcut
+                                        viewModel.makeCall()
                                     }
                                 }
                             )
@@ -222,56 +233,52 @@ fun DialpadScreen(
                     }
                 }
 
-                // Action Row: Empty spacer, Call button, Backspace
+                // Action Row: Clear spacer, Pure Neutral Glass Call button, Backspace
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 8.dp),
+                        .padding(top = 6.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Left empty slot for symmetry
-                    Box(modifier = Modifier.size(76.dp))
+                    Box(modifier = Modifier.size(74.dp))
 
-                    // Green Call Button
+                    // Pure Neutral Physical Liquid Glass Call Button (NO GREEN!)
                     Box(
                         modifier = Modifier
-                            .size(76.dp)
-                            .clip(CircleShape)
-                            .background(SalimGreen)
-                            .clickable(
+                            .size(74.dp)
+                            .liquidGlassInteractive(
+                                shape = CircleShape,
+                                elevation = 4.dp,
+                                isElevated = true,
+                                testTag = "dial_call_button",
                                 onClick = { viewModel.makeCall() }
-                            )
-                            .testTag("dial_call_button"),
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Call,
                             contentDescription = "Call",
-                            tint = SalimWhite,
+                            tint = textPrimary,
                             modifier = Modifier.size(34.dp)
                         )
                     }
 
-                    // Backspace / Clear button
+                    // Backspace button
                     Box(
-                        modifier = Modifier.size(76.dp),
+                        modifier = Modifier.size(74.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         if (enteredNumber.isNotEmpty()) {
-                            IconButton(
+                            FrostIconButton(
+                                icon = Icons.AutoMirrored.Filled.Backspace,
+                                contentDescription = "Delete digit",
                                 onClick = { viewModel.deleteLastDigit() },
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .testTag("dial_backspace_button")
-                            ) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.Backspace,
-                                    contentDescription = "Delete digit",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
+                                size = 56.dp,
+                                iconSize = 26.dp,
+                                testTag = "dial_backspace_button"
+                            )
                         }
                     }
                 }
@@ -280,23 +287,60 @@ fun DialpadScreen(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
+/**
+ * Authentic Circular Liquid Glass Key with Specular Rim, Spring Compression, and Tactile Haptics.
+ */
 @Composable
-fun DialpadKey(
+fun DialpadGlassKey(
     def: KeypadButtonDef,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val dark = isSystemInDarkTheme()
+    val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
+    val haptic = LocalHapticFeedback.current
+
+    var isPressed by remember { mutableStateOf(false) }
+
     Box(
         modifier = modifier
-            .size(76.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .combinedClickable(
-                onClick = onClick,
-                onLongClick = onLongClick
+            .size(74.dp)
+            .scale(if (isPressed) 0.96f else 1.0f)
+            .liquidGlass(
+                shape = CircleShape,
+                elevation = if (isPressed) 1.dp else 2.5.dp,
+                isElevated = isPressed
             )
+            .pointerInput(Unit) {
+                awaitEachGesture {
+                    awaitFirstDown()
+                    isPressed = true
+                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+
+                    // Check for long press (e.g. 500ms)
+                    var isLongPress = false
+                    val start = System.currentTimeMillis()
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        if (System.currentTimeMillis() - start > 450L && !isLongPress) {
+                            isLongPress = true
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onLongClick()
+                            break
+                        }
+                        if (event.changes.any { it.isConsumed || !it.pressed }) {
+                            break
+                        }
+                    }
+
+                    isPressed = false
+                    if (!isLongPress) {
+                        onClick()
+                    }
+                }
+            }
             .testTag(def.testTag),
         contentAlignment = Alignment.Center
     ) {
@@ -308,20 +352,36 @@ fun DialpadKey(
                 text = def.digit.toString(),
                 style = MaterialTheme.typography.displayLarge.copy(
                     fontWeight = FontWeight.Normal,
-                    fontSize = 32.sp
+                    fontSize = 30.sp
                 ),
-                color = MaterialTheme.colorScheme.onBackground
+                color = textPrimary
             )
             if (def.letters.isNotEmpty()) {
                 Text(
                     text = def.letters,
                     style = MaterialTheme.typography.labelSmall.copy(
-                        fontWeight = FontWeight.Bold,
-                        letterSpacing = 1.2.sp
+                        fontWeight = FontWeight.SemiBold,
+                        letterSpacing = 1.1.sp,
+                        fontSize = 10.sp
                     ),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f)
+                    color = textMuted
                 )
             }
         }
     }
+}
+
+@Composable
+fun DialpadKey(
+    def: KeypadButtonDef,
+    onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
+    modifier: Modifier = Modifier
+) {
+    DialpadGlassKey(
+        def = def,
+        onClick = onClick,
+        onLongClick = onLongClick,
+        modifier = modifier
+    )
 }
