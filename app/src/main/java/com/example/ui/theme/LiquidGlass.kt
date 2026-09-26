@@ -247,10 +247,12 @@ fun FrostIconButton(
     shape: Shape = CircleShape,
     elevation: Dp = 2.dp,
     enabled: Boolean = true,
+    tint: Color? = null,
     testTag: String? = null
 ) {
     val dark = isSystemInDarkTheme()
-    val tint = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val defaultTint = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val finalTint = tint ?: defaultTint
 
     Box(
         modifier = modifier
@@ -267,7 +269,7 @@ fun FrostIconButton(
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            tint = tint,
+            tint = finalTint,
             modifier = Modifier.size(iconSize)
         )
     }

@@ -26,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.EditNote
@@ -40,14 +41,20 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.ui.theme.CallCrimson
+import com.example.ui.theme.CallEmerald
+import com.example.ui.theme.FrostButton
 import com.example.ui.theme.liquidGlassInteractive
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -91,6 +98,7 @@ enum class InCallTab {
     KEYPAD
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CallScreen(
     callInfo: ActiveCallInfo?,
@@ -114,6 +122,7 @@ fun CallScreen(
     var keypadDigits by remember { mutableStateOf("") }
     var noteText by remember { mutableStateOf("") }
     var copyNotice by remember { mutableStateOf<String?>(null) }
+    var showQuickReplySheet by remember { mutableStateOf(false) }
 
     val state = callInfo?.state ?: TelephonyCallState.IDLE
 
@@ -344,33 +353,53 @@ fun CallScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Ringing State: Answer / Decline | Active State: End Call
+            // Ringing State: Answer / Decline / Quick Message | Active State: End Call
             if (state == TelephonyCallState.RINGING) {
-                Row(
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceAround,
-                    verticalAlignment = Alignment.CenterVertically
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    CallActionButton(
-                        icon = Icons.Default.CallEnd,
-                        label = "Decline",
-                        onClick = onDecline,
-                        testTag = "call_decline_button"
+                    // Quick reply canned SMS decline button
+                    FrostButton(
+                        text = "Message",
+                        icon = Icons.Default.Chat,
+                        onClick = { showQuickReplySheet = true },
+                        testTag = "call_quick_message_btn"
                     )
-                    CallActionButton(
-                        icon = Icons.Default.Call,
-                        label = "Accept",
-                        onClick = onAnswer,
-                        testTag = "call_answer_button"
-                    )
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.SpaceAround,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CallActionButton(
+                            icon = Icons.Default.CallEnd,
+                            label = "Decline",
+                            backgroundColor = CallCrimson,
+                            onClick = onDecline,
+                            testTag = "call_decline_button"
+                        )
+                        CallActionButton(
+                            icon = Icons.Default.Call,
+                            label = "Accept",
+                            backgroundColor = CallEmerald,
+                            onClick = onAnswer,
+                            testTag = "call_answer_button"
+                        )
+                    }
                 }
             } else {
                 Box(
                     modifier = Modifier
                         .padding(bottom = 14.dp)
-                        .size(74.dp)
+                        .size(76.dp)
+                        .background(CallCrimson, CircleShape)
                         .liquidGlassInteractive(
                             shape = CircleShape,
                             elevation = 4.dp,
@@ -384,8 +413,59 @@ fun CallScreen(
                         imageVector = Icons.Default.CallEnd,
                         contentDescription = "End Call",
                         tint = Color.White,
-                        modifier = Modifier.size(32.dp)
+                        modifier = Modifier.size(34.dp)
                     )
+                }
+            }
+        }
+
+        // Quick Decline SMS Bottom Sheet
+        if (showQuickReplySheet) {
+            val cannedReplies = listOf(
+                "Can't talk right now. What's up?",
+                "I'll call you right back.",
+                "On my way.",
+                "Sorry, in a meeting."
+            )
+            ModalBottomSheet(
+                onDismissRequest = { showQuickReplySheet = false },
+                sheetState = rememberModalBottomSheetState(),
+                containerColor = Color(0xFF1C1C1E)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 16.dp)
+                ) {
+                    Text(
+                        text = "Quick Decline with Message",
+                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                        color = Color.White
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    cannedReplies.forEach { msg ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showQuickReplySheet = false
+                                    val number = callInfo?.number ?: ""
+                                    if (number.isNotBlank()) {
+                                        try {
+                                            com.example.SalimApplication.instance.telecomRepository.openSms(number)
+                                        } catch (_: Exception) {}
+                                    }
+                                    onDecline()
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Chat, contentDescription = null, tint = Color.White.copy(alpha = 0.8f))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(text = msg, style = MaterialTheme.typography.bodyMedium, color = Color.White)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
@@ -520,9 +600,13 @@ private fun InCallIconButton(
         Box(
             modifier = Modifier
                 .size(64.dp)
+                .background(
+                    if (isActive) Color.White else Color(0x38FFFFFF),
+                    CircleShape
+                )
                 .liquidGlassInteractive(
                     shape = CircleShape,
-                    elevation = if (isActive) 4.dp else 2.dp,
+                    elevation = if (isActive) 5.dp else 2.dp,
                     isElevated = isActive,
                     testTag = testTag,
                     onClick = onClick
@@ -532,7 +616,7 @@ private fun InCallIconButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = Color.White,
+                tint = if (isActive) Color.Black else Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -540,10 +624,10 @@ private fun InCallIconButton(
         Text(
             text = label,
             style = MaterialTheme.typography.labelSmall.copy(
-                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                 fontSize = 12.sp
             ),
-            color = Color.White.copy(alpha = if (isActive) 1f else 0.8f)
+            color = if (isActive) Color.White else Color.White.copy(alpha = 0.85f)
         )
     }
 }
@@ -793,6 +877,7 @@ private fun InCallKeypadOverlay(
 private fun CallActionButton(
     icon: ImageVector,
     label: String,
+    backgroundColor: Color = Color.Transparent,
     onClick: () -> Unit,
     testTag: String
 ) {
@@ -802,7 +887,8 @@ private fun CallActionButton(
     ) {
         Box(
             modifier = Modifier
-                .size(72.dp)
+                .size(74.dp)
+                .background(backgroundColor, CircleShape)
                 .liquidGlassInteractive(
                     shape = CircleShape,
                     elevation = 4.dp,
@@ -816,7 +902,7 @@ private fun CallActionButton(
                 imageVector = icon,
                 contentDescription = label,
                 tint = Color.White,
-                modifier = Modifier.size(32.dp)
+                modifier = Modifier.size(34.dp)
             )
         }
         Spacer(modifier = Modifier.height(8.dp))

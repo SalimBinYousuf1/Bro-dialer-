@@ -27,6 +27,8 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -58,6 +60,7 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactEditScreen(
     onBack: () -> Unit,
+    contactId: Long = -1L,
     initialNumber: String = "",
     modifier: Modifier = Modifier,
     viewModel: ContactsViewModel = viewModel()
@@ -79,6 +82,37 @@ fun ContactEditScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
+    val currentContact by viewModel.currentContact.collectAsState()
+
+    LaunchedEffect(contactId) {
+        if (contactId > 0) {
+            viewModel.loadContactById(contactId)
+        }
+    }
+
+    LaunchedEffect(currentContact) {
+        val contact = currentContact
+        if (contactId > 0 && contact != null && contact.id == contactId) {
+            val nameParts = contact.name.trim().split("\\s+".toRegex())
+            if (firstName.isBlank() && lastName.isBlank()) {
+                firstName = nameParts.firstOrNull() ?: ""
+                lastName = if (nameParts.size > 1) nameParts.drop(1).joinToString(" ") else ""
+            }
+            if (phoneNumber.isBlank() || phoneNumber == initialNumber) {
+                phoneNumber = contact.primaryNumber
+            }
+            if (email.isBlank()) {
+                email = contact.emails.firstOrNull() ?: ""
+            }
+            if (organization.isBlank()) {
+                organization = contact.organization ?: ""
+            }
+            if (selectedAvatarUri == null) {
+                selectedAvatarUri = contact.photoUri
+            }
+        }
+    }
+
     Scaffold(
         modifier = modifier.fillMaxSize(),
         containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight,
@@ -87,7 +121,7 @@ fun ContactEditScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "New Contact",
+                        text = if (contactId > 0) "Edit Contact" else "New Contact",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = textPrimary
                     )
@@ -112,20 +146,41 @@ fun ContactEditScreen(
                                 return@FrostButton
                             }
                             isSaving = true
-                            viewModel.createContact(
-                                firstName = firstName,
-                                lastName = lastName,
-                                phone = phoneNumber,
-                                email = email,
-                                organization = organization,
-                                avatarUri = selectedAvatarUri
-                            ) { success ->
-                                isSaving = false
-                                if (success) {
-                                    onBack()
-                                } else {
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Failed to create contact")
+                            if (contactId > 0) {
+                                viewModel.updateContact(
+                                    contactId = contactId,
+                                    firstName = firstName,
+                                    lastName = lastName,
+                                    phone = phoneNumber,
+                                    email = email,
+                                    organization = organization,
+                                    avatarUri = selectedAvatarUri
+                                ) { success ->
+                                    isSaving = false
+                                    if (success) {
+                                        onBack()
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Failed to update contact")
+                                        }
+                                    }
+                                }
+                            } else {
+                                viewModel.createContact(
+                                    firstName = firstName,
+                                    lastName = lastName,
+                                    phone = phoneNumber,
+                                    email = email,
+                                    organization = organization,
+                                    avatarUri = selectedAvatarUri
+                                ) { success ->
+                                    isSaving = false
+                                    if (success) {
+                                        onBack()
+                                    } else {
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Failed to create contact")
+                                        }
                                     }
                                 }
                             }

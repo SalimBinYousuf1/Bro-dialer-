@@ -1,8 +1,17 @@
 package com.example.ui.contacts
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
+import android.telephony.SubscriptionManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -14,6 +23,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -76,13 +86,17 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import com.example.data.model.CallRecord
 import com.example.data.model.CallType
+import com.example.domain.usecase.SocialAppAvailabilityHelper
 import com.example.telephony.CallManager
 import com.example.ui.components.SalimAvatar
 import com.example.ui.components.SalimAvatarPickerSheet
 import com.example.ui.components.SalimBackButton
 import com.example.ui.components.SalimConfirmationDialog
+import com.example.ui.theme.BrandColors
+import com.example.ui.theme.BrandIcons
 import com.example.ui.theme.FrostButton
 import com.example.ui.theme.FrostCard
 import com.example.ui.theme.FrostIconButton
@@ -121,14 +135,11 @@ fun ContactDetailScreen(
     var showAvatarPicker by remember { mutableStateOf(false) }
 
     // Dialogs for preferences
-    var showRingtoneDialog by remember { mutableStateOf(false) }
     var showCallBackgroundDialog by remember { mutableStateOf(false) }
     var showSimDialog by remember { mutableStateOf(false) }
 
-    // Custom Contact Settings state
-    var selectedRingtone by remember { mutableStateOf("Follow system") }
-    var selectedBackground by remember { mutableStateOf("Contact photo priority") }
-    var selectedSim by remember { mutableStateOf("Follow system") }
+    // Custom Contact Settings state observed from repository
+    val contactCustomization by viewModel.getContactCustomization(contactId).collectAsState(initial = null)
 
     // Call history dropdown
     var callHistoryExpanded by remember { mutableStateOf(false) }
@@ -139,6 +150,39 @@ fun ContactDetailScreen(
     }
 
     val contact by viewModel.currentContact.collectAsState()
+
+    // Native Ringtone Picker Launcher
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            val title = if (uri != null) {
+                try {
+                    RingtoneManager.getRingtone(context, uri)?.getTitle(context) ?: "Custom Ringtone"
+                } catch (_: Exception) {
+                    "Custom Ringtone"
+                }
+            } else "Silent"
+            viewModel.saveContactRingtone(contactId, uri?.toString(), title)
+            scope.launch { snackbarHostState.showSnackbar("Ringtone updated: $title") }
+        }
+    }
+
+    // Photo Picker for Call Background
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickVisualMedia()
+    ) { uri ->
+        if (uri != null) {
+            viewModel.saveContactCallBackground(contactId, uri)
+            scope.launch { snackbarHostState.showSnackbar("Call background photo saved") }
+        }
+    }
 
     LaunchedEffect(contact) {
         val c = contact
@@ -264,50 +308,63 @@ fun ContactDetailScreen(
                             label = "Video",
                             enabled = currentContact.primaryNumber.isNotBlank(),
                             onClick = {
-                                CallManager.startVideoCall(context, currentContact.primaryNumber)
+                                CallManager.startVideoCall(context, currentContact.primaryNumber, currentContact.name, currentContact.photoUri)
                             }
                         )
                     }
 
                     Spacer(modifier = Modifier.height(14.dp))
 
+                    val hasWhatsApp = remember(currentContact, context) {
+                        SocialAppAvailabilityHelper.hasWhatsAppAvailable(context, currentContact.id, currentContact.primaryNumber)
+                    }
+                    val hasTelegram = remember(currentContact, context) {
+                        SocialAppAvailabilityHelper.hasTelegramAvailable(context, currentContact.id, currentContact.primaryNumber)
+                    }
+
                     // Connected Apps Row (WhatsApp, Telegram, Share)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        ActionTile(
-                            icon = Icons.Default.Chat,
-                            label = "WhatsApp",
-                            enabled = cleanNumber.isNotBlank(),
-                            onClick = {
-                                try {
-                                    val waIntent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                        if (hasWhatsApp) {
+                            ActionTile(
+                                icon = BrandIcons.WhatsApp,
+                                label = "WhatsApp",
+                                tint = BrandColors.WhatsApp,
+                                enabled = cleanNumber.isNotBlank(),
+                                onClick = {
+                                    try {
+                                        val waIntent = Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse("https://api.whatsapp.com/send?phone=$cleanNumber")
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        }
+                                        context.startActivity(waIntent)
+                                    } catch (_: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Could not open WhatsApp") }
                                     }
-                                    context.startActivity(waIntent)
-                                } catch (_: Exception) {
-                                    scope.launch { snackbarHostState.showSnackbar("Could not open WhatsApp") }
                                 }
-                            }
-                        )
-                        ActionTile(
-                            icon = Icons.Default.Send,
-                            label = "Telegram",
-                            enabled = cleanNumber.isNotBlank(),
-                            onClick = {
-                                try {
-                                    val tgIntent = Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse("https://t.me/+$cleanNumber")
-                                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                            )
+                        }
+                        if (hasTelegram) {
+                            ActionTile(
+                                icon = BrandIcons.Telegram,
+                                label = "Telegram",
+                                tint = BrandColors.Telegram,
+                                enabled = cleanNumber.isNotBlank(),
+                                onClick = {
+                                    try {
+                                        val tgIntent = Intent(Intent.ACTION_VIEW).apply {
+                                            data = Uri.parse("https://t.me/+$cleanNumber")
+                                            flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                                        }
+                                        context.startActivity(tgIntent)
+                                    } catch (_: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Could not open Telegram") }
                                     }
-                                    context.startActivity(tgIntent)
-                                } catch (_: Exception) {
-                                    scope.launch { snackbarHostState.showSnackbar("Could not open Telegram") }
                                 }
-                            }
-                        )
+                            )
+                        }
                         ActionTile(
                             icon = Icons.Default.Share,
                             label = "Share",
@@ -316,13 +373,16 @@ fun ContactDetailScreen(
                                 val shareText = buildString {
                                     appendLine(currentContact.name)
                                     currentContact.numbers.forEach { appendLine("${it.type}: ${it.number}") }
-                                    currentContact.emails.forEach { appendLine("Email: $it") }
+                                    if (currentContact.emails.isNotEmpty()) {
+                                        currentContact.emails.forEach { appendLine("Email: $it") }
+                                    }
                                     if (!currentContact.organization.isNullOrBlank()) {
                                         appendLine("Company: ${currentContact.organization}")
                                     }
-                                }
+                                }.trim()
                                 val intent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
+                                    putExtra(Intent.EXTRA_SUBJECT, currentContact.name)
                                     putExtra(Intent.EXTRA_TEXT, shareText)
                                 }
                                 try {
@@ -433,67 +493,77 @@ fun ContactDetailScreen(
                             }
 
                             AnimatedVisibility(visible = callHistoryExpanded) {
-                                Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
-                                    if (contactCallLogs.isEmpty()) {
-                                        Text(
-                                            text = "No prior call records found with this contact.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = textMuted,
-                                            modifier = Modifier.padding(vertical = 8.dp)
-                                        )
-                                    } else {
-                                        contactCallLogs.take(10).forEachIndexed { idx, record ->
-                                            if (idx > 0) {
-                                                HorizontalDivider(
-                                                    thickness = 0.5.dp,
-                                                    color = textMuted.copy(alpha = 0.2f),
-                                                    modifier = Modifier.padding(vertical = 6.dp)
-                                                )
-                                            }
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    val callIcon = when (record.type) {
-                                                        CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed
-                                                        CallType.OUTGOING -> Icons.Default.CallMade
-                                                        CallType.INCOMING -> Icons.Default.CallReceived
-                                                        CallType.BLOCKED -> Icons.Default.Block
-                                                        CallType.VOICEMAIL -> Icons.Default.Call
-                                                    }
-                                                    Icon(imageVector = callIcon, contentDescription = null, tint = textPrimary, modifier = Modifier.size(16.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = when (record.type) {
-                                                                CallType.MISSED -> "Missed Call"
-                                                                CallType.OUTGOING -> "Outgoing"
-                                                                CallType.INCOMING -> "Incoming"
-                                                                CallType.REJECTED -> "Declined"
-                                                                CallType.BLOCKED -> "Blocked"
-                                                                CallType.VOICEMAIL -> "Voicemail"
-                                                            },
-                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                                            color = textPrimary
-                                                        )
-                                                        val timeStr = remember(record.date) {
-                                                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(record.date))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 240.dp)
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Column {
+                                        if (contactCallLogs.isEmpty()) {
+                                            Text(
+                                                text = "No prior call records found with this contact.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = textMuted,
+                                                modifier = Modifier.padding(vertical = 8.dp)
+                                            )
+                                        } else {
+                                            contactCallLogs.forEachIndexed { idx, record ->
+                                                if (idx > 0) {
+                                                    HorizontalDivider(
+                                                        thickness = 0.5.dp,
+                                                        color = textMuted.copy(alpha = 0.2f),
+                                                        modifier = Modifier.padding(vertical = 6.dp)
+                                                    )
+                                                }
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        val callIcon = when (record.type) {
+                                                            CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed
+                                                            CallType.OUTGOING -> Icons.Default.CallMade
+                                                            CallType.INCOMING -> Icons.Default.CallReceived
+                                                            CallType.BLOCKED -> Icons.Default.Block
+                                                            CallType.VOICEMAIL -> Icons.Default.Call
                                                         }
+                                                        val isMissed = record.type == CallType.MISSED || record.type == CallType.REJECTED
+                                                        val callTint = if (isMissed) BrandColors.AppleRed else textPrimary
+                                                        Icon(imageVector = callIcon, contentDescription = null, tint = callTint, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Column {
+                                                            Text(
+                                                                text = when (record.type) {
+                                                                    CallType.MISSED -> "Missed Call"
+                                                                    CallType.OUTGOING -> "Outgoing"
+                                                                    CallType.INCOMING -> "Incoming"
+                                                                    CallType.REJECTED -> "Declined"
+                                                                    CallType.BLOCKED -> "Blocked"
+                                                                    CallType.VOICEMAIL -> "Voicemail"
+                                                                },
+                                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                                color = if (isMissed) BrandColors.AppleRed else textPrimary
+                                                            )
+                                                            val timeStr = remember(record.date) {
+                                                                SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(record.date))
+                                                            }
+                                                            Text(
+                                                                text = timeStr,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = textMuted
+                                                            )
+                                                        }
+                                                    }
+                                                    if (record.durationSeconds > 0) {
                                                         Text(
-                                                            text = timeStr,
+                                                            text = record.formattedDuration,
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = textMuted
                                                         )
                                                     }
-                                                }
-                                                if (record.durationSeconds > 0) {
-                                                    Text(
-                                                        text = record.formattedDuration,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = textMuted
-                                                    )
                                                 }
                                             }
                                         }
@@ -508,21 +578,38 @@ fun ContactDetailScreen(
                     // Audio & Call Customization Card (Ringtone, Background, SIM)
                     FrostCard(modifier = Modifier.fillMaxWidth()) {
                         Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                            val ringtoneTitle = contactCustomization?.ringtoneTitle ?: "Follow system"
                             ContactPreferenceRow(
                                 icon = Icons.Default.MusicNote,
                                 title = "Ringtone",
-                                subtitle = selectedRingtone,
-                                onClick = { showRingtoneDialog = true }
+                                subtitle = ringtoneTitle,
+                                onClick = {
+                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone for ${currentContact.name}")
+                                        contactCustomization?.ringtoneUri?.let {
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                                        }
+                                    }
+                                    try {
+                                        ringtonePickerLauncher.launch(intent)
+                                    } catch (_: Exception) {
+                                        scope.launch { snackbarHostState.showSnackbar("Could not open system ringtone picker") }
+                                    }
+                                }
                             )
                             HorizontalDivider(
                                 thickness = 0.5.dp,
                                 color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
+                            val bgTitle = if (contactCustomization?.callBackgroundUri != null) "Custom Wallpaper" else "Default Frost Glass"
                             ContactPreferenceRow(
                                 icon = Icons.Default.Photo,
                                 title = "Call background",
-                                subtitle = selectedBackground,
+                                subtitle = bgTitle,
                                 onClick = { showCallBackgroundDialog = true }
                             )
                             HorizontalDivider(
@@ -530,10 +617,16 @@ fun ContactDetailScreen(
                                 color = textMuted.copy(alpha = 0.2f),
                                 modifier = Modifier.padding(horizontal = 16.dp)
                             )
+                            val simTitle = when (val simId = contactCustomization?.defaultSimId ?: -1) {
+                                -1 -> "Follow system"
+                                1 -> "SIM 1"
+                                2 -> "SIM 2"
+                                else -> "SIM $simId"
+                            }
                             ContactPreferenceRow(
                                 icon = Icons.Default.SimCard,
                                 title = "Default calling SIM",
-                                subtitle = selectedSim,
+                                subtitle = simTitle,
                                 onClick = { showSimDialog = true }
                             )
                         }
@@ -578,95 +671,54 @@ fun ContactDetailScreen(
         }
     }
 
-    // DIALOG: Ringtone Selector
-    if (showRingtoneDialog) {
-        val ringtones = listOf("Follow system", "Salim Bell", "Marimba", "Reflection", "Classic Bell", "Silk", "Strum")
-        AlertDialog(
-            onDismissRequest = { showRingtoneDialog = false },
-            title = { Text("Select Ringtone", fontWeight = FontWeight.Bold, color = textPrimary) },
-            text = {
-                Column {
-                    ringtones.forEach { tone ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selectedRingtone = tone
-                                    showRingtoneDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = tone,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (selectedRingtone == tone) FontWeight.Bold else FontWeight.Normal,
-                                color = textPrimary
-                            )
-                            if (selectedRingtone == tone) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = textPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                FrostButton(
-                    text = "Done",
-                    onClick = { showRingtoneDialog = false }
-                )
-            },
-            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
-        )
-    }
-
-    // DIALOG: Call Background Selector
+    // DIALOG: Call Background Selector (Gallery, Avatar, Reset)
     if (showCallBackgroundDialog) {
-        val bgs = listOf("Contact photo priority", "Custom Wallpaper", "Default Frost Glass")
+        val bgOptions = listOf(
+            "Choose Photo from Gallery",
+            "Use Contact Avatar",
+            "Reset to Default Frost Glass"
+        )
         AlertDialog(
             onDismissRequest = { showCallBackgroundDialog = false },
             title = { Text("Call Background", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
-                    bgs.forEach { bg ->
+                    bgOptions.forEach { opt ->
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
-                                    selectedBackground = bg
                                     showCallBackgroundDialog = false
+                                    when (opt) {
+                                        "Choose Photo from Gallery" -> {
+                                            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                        }
+                                        "Use Contact Avatar" -> {
+                                            contact?.photoUri?.let { uriStr ->
+                                                viewModel.saveContactCallBackground(contactId, Uri.parse(uriStr))
+                                            }
+                                        }
+                                        "Reset to Default Frost Glass" -> {
+                                            viewModel.saveContactCallBackground(contactId, null)
+                                        }
+                                    }
                                 }
-                                .padding(vertical = 12.dp),
+                                .padding(vertical = 14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.SpaceBetween
                         ) {
                             Text(
-                                text = bg,
+                                text = opt,
                                 style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (selectedBackground == bg) FontWeight.Bold else FontWeight.Normal,
                                 color = textPrimary
                             )
-                            if (selectedBackground == bg) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = textPrimary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
                         }
                     }
                 }
             },
             confirmButton = {
                 FrostButton(
-                    text = "Done",
+                    text = "Close",
                     onClick = { showCallBackgroundDialog = false }
                 )
             },
@@ -674,39 +726,114 @@ fun ContactDetailScreen(
         )
     }
 
-    // DIALOG: SIM Selector
+    // DIALOG: Default Calling SIM Selector
     if (showSimDialog) {
-        val sims = listOf("Follow system", "SIM 1", "SIM 2")
+        val subscriptionManager = remember {
+            context.getSystemService(Context.TELEPHONY_SUBSCRIPTION_SERVICE) as? SubscriptionManager
+        }
+        val subList = remember(context) {
+            try {
+                if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_PHONE_STATE) == PackageManager.PERMISSION_GRANTED) {
+                    subscriptionManager?.activeSubscriptionInfoList ?: emptyList()
+                } else emptyList()
+            } catch (_: Exception) { emptyList() }
+        }
+
+        val currentSimId = contactCustomization?.defaultSimId ?: -1
+
         AlertDialog(
             onDismissRequest = { showSimDialog = false },
             title = { Text("Default Calling SIM", fontWeight = FontWeight.Bold, color = textPrimary) },
             text = {
                 Column {
-                    sims.forEach { sim ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    selectedSim = sim
-                                    showSimDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = sim,
-                                style = MaterialTheme.typography.bodyLarge,
-                                fontWeight = if (selectedSim == sim) FontWeight.Bold else FontWeight.Normal,
-                                color = textPrimary
+                    // Option: Follow System
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                viewModel.saveContactDefaultSim(contactId, -1)
+                                showSimDialog = false
+                            }
+                            .padding(vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            text = "Follow System (Ask / Default)",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = if (currentSimId == -1) FontWeight.Bold else FontWeight.Normal,
+                            color = textPrimary
+                        )
+                        if (currentSimId == -1) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = textPrimary,
+                                modifier = Modifier.size(18.dp)
                             )
-                            if (selectedSim == sim) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = textPrimary,
-                                    modifier = Modifier.size(18.dp)
+                        }
+                    }
+
+                    if (subList.isNotEmpty()) {
+                        subList.forEach { sub ->
+                            val simId = sub.simSlotIndex + 1
+                            val isSelected = currentSimId == simId
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.saveContactDefaultSim(contactId, simId)
+                                        showSimDialog = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = "${sub.displayName} (SIM $simId)",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = textPrimary
                                 )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        // Standard SIM 1 & SIM 2 fallback
+                        listOf(1 to "SIM 1", 2 to "SIM 2").forEach { (simId, label) ->
+                            val isSelected = currentSimId == simId
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        viewModel.saveContactDefaultSim(contactId, simId)
+                                        showSimDialog = false
+                                    }
+                                    .padding(vertical = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                    color = textPrimary
+                                )
+                                if (isSelected) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = textPrimary,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                }
                             }
                         }
                     }
@@ -817,6 +944,7 @@ private fun ContactPreferenceRow(
 private fun ActionTile(
     icon: ImageVector,
     label: String,
+    tint: Color? = null,
     enabled: Boolean = true,
     onClick: () -> Unit
 ) {
@@ -833,6 +961,7 @@ private fun ActionTile(
             contentDescription = label,
             onClick = onClick,
             enabled = enabled,
+            tint = tint,
             size = 52.dp,
             iconSize = 24.dp,
             elevation = 2.dp

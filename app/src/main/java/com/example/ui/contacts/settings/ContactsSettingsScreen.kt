@@ -1,6 +1,10 @@
 package com.example.ui.contacts.settings
 
+import android.content.Intent
+import android.net.Uri
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -23,9 +27,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.AccountBox
+import androidx.compose.material.icons.filled.Backup
 import androidx.compose.material.icons.filled.Business
 import androidx.compose.material.icons.filled.CallMerge
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CloudDownload
+import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -34,6 +41,7 @@ import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -95,7 +103,17 @@ fun ContactsSettingsScreen(
     val settings by viewModel.settings.collectAsState()
     val recentlyDeleted by viewModel.recentlyDeleted.collectAsState()
     val duplicateCount by viewModel.duplicateCount.collectAsState()
+    val lastBackupTime by viewModel.lastBackupTime.collectAsState()
+    val hasBackup by viewModel.hasBackup.collectAsState()
     val message by viewModel.message.collectAsState()
+
+    val filePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            viewModel.importContactsFromUri(context, uri)
+        }
+    }
 
     var showAccountDialog by remember { mutableStateOf(false) }
     var showSortDialog by remember { mutableStateOf(false) }
@@ -239,9 +257,9 @@ fun ContactsSettingsScreen(
             FrostCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
                     ContactsSettingNavRow(
-                        icon = Icons.Default.ImportExport,
-                        title = "Import/Export",
-                        value = "",
+                        icon = Icons.Default.Backup,
+                        title = "Import, Export & Backup",
+                        value = if (hasBackup) "Backed up" else "Ready",
                         onClick = { showImportExportSheet = true },
                         testTag = "nav_import_export"
                     )
@@ -493,7 +511,7 @@ fun ContactsSettingsScreen(
         )
     }
 
-    // BOTTOM SHEET: Import/Export
+    // BOTTOM SHEET: Import/Export & Backup
     if (showImportExportSheet) {
         ModalBottomSheet(
             onDismissRequest = { showImportExportSheet = false },
@@ -506,47 +524,109 @@ fun ContactsSettingsScreen(
                     .padding(24.dp)
             ) {
                 Text(
-                    text = "Import / Export Contacts",
+                    text = "Backup & Data Management",
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                     color = textPrimary
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = if (lastBackupTime != null) "Last local backup: $lastBackupTime" else "No local backup created yet",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = textMuted
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
                 FrostCard(modifier = Modifier.fillMaxWidth()) {
                     Column {
+                        // Action 1: Create Backup
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     showImportExportSheet = false
-                                    Toast.makeText(context, "Exported contacts to vCard (.vcf)", Toast.LENGTH_LONG).show()
+                                    viewModel.backupContacts(context)
                                 }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Default.Save, contentDescription = null, tint = textPrimary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
-                                Text("Export to .vcf file", fontWeight = FontWeight.SemiBold, color = textPrimary)
-                                Text("Save contacts to storage as standard vCard file", fontSize = 12.sp, color = textMuted)
+                            Icon(Icons.Default.CloudUpload, contentDescription = null, tint = textPrimary)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Back up to local storage", fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                Text("Save an instant offline snapshot of all contacts", fontSize = 12.sp, color = textMuted)
                             }
                         }
+
                         HorizontalDivider(thickness = 0.5.dp, color = textMuted.copy(alpha = 0.2f))
+
+                        // Action 2: Restore Backup
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clickable {
                                     showImportExportSheet = false
-                                    Toast.makeText(context, "Select a .vcf file to import", Toast.LENGTH_SHORT).show()
+                                    viewModel.restoreLocalBackup(context)
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.CloudDownload, contentDescription = null, tint = if (hasBackup) textPrimary else textMuted)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Restore from local backup",
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = if (hasBackup) textPrimary else textMuted
+                                )
+                                Text(
+                                    text = if (hasBackup) "Restore contacts from your offline snapshot" else "No backup file available to restore",
+                                    fontSize = 12.sp,
+                                    color = textMuted
+                                )
+                            }
+                        }
+
+                        HorizontalDivider(thickness = 0.5.dp, color = textMuted.copy(alpha = 0.2f))
+
+                        // Action 3: Export to .vcf (Share / Drive)
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showImportExportSheet = false
+                                    viewModel.exportContactsVcf(context) { intent ->
+                                        context.startActivity(Intent.createChooser(intent, "Export Contacts (.vcf)"))
+                                    }
+                                }
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Share, contentDescription = null, tint = textPrimary)
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Export to .vcf file", fontWeight = FontWeight.SemiBold, color = textPrimary)
+                                Text("Share or save standard vCard file (Drive, Email, etc.)", fontSize = 12.sp, color = textMuted)
+                            }
+                        }
+
+                        HorizontalDivider(thickness = 0.5.dp, color = textMuted.copy(alpha = 0.2f))
+
+                        // Action 4: Import from .vcf
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showImportExportSheet = false
+                                    filePickerLauncher.launch("*/*")
                                 }
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(Icons.Default.ImportExport, contentDescription = null, tint = textPrimary)
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Column {
+                            Spacer(modifier = Modifier.width(14.dp))
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text("Import from .vcf file", fontWeight = FontWeight.SemiBold, color = textPrimary)
-                                Text("Restore contacts from vCard file in storage", fontSize = 12.sp, color = textMuted)
+                                Text("Select and load a vCard file from device storage", fontSize = 12.sp, color = textMuted)
                             }
                         }
                     }

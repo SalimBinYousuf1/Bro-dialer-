@@ -3,6 +3,7 @@ package com.example.ui.dialpad
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.PersonAdd
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -49,6 +52,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.domain.usecase.PhoneNumberHelper
 import com.example.ui.components.SalimAvatar
+import com.example.ui.theme.CallEmerald
 import com.example.ui.theme.FrostButton
 import com.example.ui.theme.FrostIconButton
 import com.example.ui.theme.GlassBackgroundDark
@@ -71,11 +75,13 @@ data class KeypadButtonDef(
 fun DialpadScreen(
     viewModel: DialpadViewModel,
     onAddContact: (String) -> Unit,
+    onViewContact: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dark = isSystemInDarkTheme()
     val enteredNumber by viewModel.enteredNumber.collectAsState()
     val matchedContacts by viewModel.matchedContacts.collectAsState()
+    val matchedSavedContact by viewModel.matchedSavedContact.collectAsState()
 
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
@@ -184,19 +190,67 @@ fun DialpadScreen(
                         .testTag("dial_number_display")
                 )
 
-                // Add to contacts affordance
+                // Contact / Add to contacts affordance
                 AnimatedVisibility(
                     visible = enteredNumber.isNotEmpty(),
                     enter = fadeIn(),
                     exit = fadeOut()
                 ) {
-                    Box(modifier = Modifier.padding(top = 8.dp)) {
-                        FrostButton(
-                            text = "Add Number",
-                            icon = Icons.Default.PersonAdd,
-                            onClick = { onAddContact(enteredNumber) },
-                            testTag = "dial_add_contact_button"
-                        )
+                    val savedContact = matchedSavedContact
+                    if (savedContact != null) {
+                        Box(
+                            modifier = Modifier
+                                .padding(top = 8.dp)
+                                .liquidGlassInteractive(
+                                    shape = RoundedCornerShape(20.dp),
+                                    elevation = 2.dp,
+                                    testTag = "dial_matched_contact_pill",
+                                    onClick = { onViewContact(savedContact.id) }
+                                )
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SalimAvatar(
+                                    name = savedContact.name,
+                                    photoUri = savedContact.photoUri,
+                                    size = 28.dp
+                                )
+                                Column {
+                                    Text(
+                                        text = savedContact.name,
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        color = textPrimary
+                                    )
+                                    val matchedType = savedContact.numbers.firstOrNull {
+                                        PhoneNumberHelper.areNumbersEqual(it.number, enteredNumber) ||
+                                        PhoneNumberHelper.areNumbersEqual(it.normalizedNumber, enteredNumber)
+                                    }?.type ?: "Saved Contact"
+                                    Text(
+                                        text = "$matchedType • Tap to view",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = textMuted
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Filled.ArrowForwardIos,
+                                    contentDescription = "View contact",
+                                    tint = textMuted,
+                                    modifier = Modifier.size(12.dp)
+                                )
+                            }
+                        }
+                    } else if (enteredNumber.length >= 3) {
+                        Box(modifier = Modifier.padding(top = 8.dp)) {
+                            FrostButton(
+                                text = "Add to Contacts",
+                                icon = Icons.Default.PersonAdd,
+                                onClick = { onAddContact(enteredNumber) },
+                                testTag = "dial_add_contact_button"
+                            )
+                        }
                     }
                 }
             }
@@ -244,7 +298,7 @@ fun DialpadScreen(
                     // Left empty slot for symmetry
                     Box(modifier = Modifier.size(74.dp))
 
-                    // Pure Neutral Physical Liquid Glass Call Button (NO GREEN!)
+                    // High-contrast Apple & Google style Frosted Emerald Call Button
                     Box(
                         modifier = Modifier
                             .size(74.dp)
@@ -254,13 +308,14 @@ fun DialpadScreen(
                                 isElevated = true,
                                 testTag = "dial_call_button",
                                 onClick = { viewModel.makeCall() }
-                            ),
+                            )
+                            .background(CallEmerald, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
                             imageVector = Icons.Default.Call,
                             contentDescription = "Call",
-                            tint = textPrimary,
+                            tint = Color.White,
                             modifier = Modifier.size(34.dp)
                         )
                     }

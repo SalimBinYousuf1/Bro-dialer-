@@ -130,4 +130,37 @@ class CallLogRepository(private val context: Context) {
             normalized.any { clean.endsWith(it) || it.endsWith(clean) }
         }
     }
+
+    suspend fun logCall(
+        number: String,
+        name: String? = null,
+        type: CallType = CallType.OUTGOING,
+        durationSeconds: Long = 0L
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.WRITE_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext false
+        }
+        try {
+            val values = android.content.ContentValues().apply {
+                put(CallLog.Calls.NUMBER, number)
+                if (name != null) put(CallLog.Calls.CACHED_NAME, name)
+                put(CallLog.Calls.DATE, System.currentTimeMillis())
+                put(CallLog.Calls.DURATION, durationSeconds)
+                val rawType = when (type) {
+                    CallType.INCOMING -> CallLog.Calls.INCOMING_TYPE
+                    CallType.OUTGOING -> CallLog.Calls.OUTGOING_TYPE
+                    CallType.MISSED -> CallLog.Calls.MISSED_TYPE
+                    CallType.REJECTED -> CallLog.Calls.REJECTED_TYPE
+                    CallType.BLOCKED -> CallLog.Calls.BLOCKED_TYPE
+                    CallType.VOICEMAIL -> CallLog.Calls.VOICEMAIL_TYPE
+                }
+                put(CallLog.Calls.TYPE, rawType)
+                put(CallLog.Calls.NEW, 1)
+            }
+            val uri = context.contentResolver.insert(CallLog.Calls.CONTENT_URI, values)
+            uri != null
+        } catch (_: Exception) {
+            false
+        }
+    }
 }

@@ -19,9 +19,9 @@ val GlassBorderLight = Color(0x33000000)            // Subtle outer rim
 val GlassHighlightLight = Color(0x80FFFFFF)         // Specular upper reflection
 val GlassRimLight = Color(0x40FFFFFF)               // Fine translucent rim
 
-val GlassTextPrimaryLight = Color(0xFF141416)
-val GlassTextSecondaryLight = Color(0xFF6B6B72)
-val GlassTextTertiaryLight = Color(0xFF9A9AA0)
+val GlassTextPrimaryLight = Color(0xFF0F172A)
+val GlassTextSecondaryLight = Color(0xFF475569)
+val GlassTextTertiaryLight = Color(0xFF64748B)
 val GlassDividerLight = Color(0x1F000000)
 
 // Dark Theme Glass Tokens
@@ -35,10 +35,16 @@ val GlassBorderDark = Color(0x38FFFFFF)             // Subtle specular rim
 val GlassHighlightDark = Color(0x4DFFFFFF)          // Specular upper reflection
 val GlassRimDark = Color(0x26FFFFFF)
 
-val GlassTextPrimaryDark = Color(0xFFF4F4F6)
-val GlassTextSecondaryDark = Color(0xFFA2A2A8)
-val GlassTextTertiaryDark = Color(0xFF6F6F75)
+val GlassTextPrimaryDark = Color(0xFFF8FAFC)
+val GlassTextSecondaryDark = Color(0xFFCBD5E1)
+val GlassTextTertiaryDark = Color(0xFF94A3B8)
 val GlassDividerDark = Color(0x24FFFFFF)
+
+// High-contrast Call Semantics (Apple & Google Standard Call Colors)
+val CallEmerald = Color(0xFF34C759)
+val CallCrimson = Color(0xFFFF3B30)
+val CallAmber = Color(0xFFFF9500)
+val CallBlue = Color(0xFF007AFF)
 
 // Legacy alias mappings for strict backward-compatibility while enforcing neutral glass
 val SalimWhite = GlassPureWhite

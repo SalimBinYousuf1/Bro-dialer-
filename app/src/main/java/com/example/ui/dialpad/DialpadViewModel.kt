@@ -54,6 +54,9 @@ class DialpadViewModel(
     private val _matchedContacts = MutableStateFlow<List<T9SearchEngine.T9MatchResult>>(emptyList())
     val matchedContacts: StateFlow<List<T9SearchEngine.T9MatchResult>> = _matchedContacts.asStateFlow()
 
+    private val _matchedSavedContact = MutableStateFlow<ContactItem?>(null)
+    val matchedSavedContact: StateFlow<ContactItem?> = _matchedSavedContact.asStateFlow()
+
     init {
         loadContacts()
     }
@@ -62,7 +65,7 @@ class DialpadViewModel(
         viewModelScope.launch {
             val contacts = contactsRepository.loadContacts()
             _allContacts.value = contacts
-            updateT9Matches(_enteredNumber.value)
+            updateMatching(_enteredNumber.value)
         }
     }
 
@@ -70,7 +73,7 @@ class DialpadViewModel(
         provideFeedback(digit)
         val newNum = _enteredNumber.value + digit
         _enteredNumber.value = newNum
-        updateT9Matches(newNum)
+        updateMatching(newNum)
     }
 
     fun deleteLastDigit() {
@@ -78,7 +81,7 @@ class DialpadViewModel(
             provideHaptic()
             val newNum = _enteredNumber.value.dropLast(1)
             _enteredNumber.value = newNum
-            updateT9Matches(newNum)
+            updateMatching(newNum)
         }
     }
 
@@ -86,18 +89,21 @@ class DialpadViewModel(
         provideHaptic()
         _enteredNumber.value = ""
         _matchedContacts.value = emptyList()
+        _matchedSavedContact.value = null
     }
 
     fun setNumber(number: String) {
         _enteredNumber.value = number
-        updateT9Matches(number)
+        updateMatching(number)
     }
 
-    private fun updateT9Matches(digits: String) {
+    private fun updateMatching(digits: String) {
         if (digits.isBlank()) {
             _matchedContacts.value = emptyList()
+            _matchedSavedContact.value = null
             return
         }
+        _matchedSavedContact.value = PhoneNumberHelper.findContactForNumber(_allContacts.value, digits)
         if (settings.value.t9SearchEnabled) {
             _matchedContacts.value = T9SearchEngine.search(_allContacts.value, digits)
         }

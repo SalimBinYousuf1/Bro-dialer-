@@ -226,14 +226,23 @@ fun MainAppScaffold(
                 RecentsScreen(
                     viewModel = recentsViewModel,
                     onContactDetailClick = { number ->
-                        // If number matches contact, open contact detail, else open edit
-                        val contact = contactsViewModel.rawContacts.value.find { c ->
-                            c.numbers.any { it.number == number || it.normalizedNumber == number }
-                        }
+                        // Use robust phone number matching engine
+                        val contact = com.example.domain.usecase.PhoneNumberHelper.findContactForNumber(
+                            contactsViewModel.rawContacts.value,
+                            number
+                        )
                         if (contact != null) {
                             navController.navigate(Screen.ContactDetail.createRoute(contact.id))
                         } else {
                             navController.navigate(Screen.ContactEdit.createRoute(-1L) + "?number=$number")
+                        }
+                    },
+                    onEditBeforeCall = { number ->
+                        dialpadViewModel.setNumber(number)
+                        navController.navigate(Screen.Dialpad.route) {
+                            popUpTo(Screen.Home.route) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
                         }
                     }
                 )
@@ -256,6 +265,9 @@ fun MainAppScaffold(
                     viewModel = dialpadViewModel,
                     onAddContact = { number ->
                         navController.navigate(Screen.ContactEdit.createRoute(-1L) + "?number=$number")
+                    },
+                    onViewContact = { contactId ->
+                        navController.navigate(Screen.ContactDetail.createRoute(contactId))
                     }
                 )
             }
@@ -349,8 +361,10 @@ fun MainAppScaffold(
                     }
                 )
             ) { backStackEntry ->
+                val contactId = backStackEntry.arguments?.getLong("contactId") ?: -1L
                 val initialNum = backStackEntry.arguments?.getString("number") ?: ""
                 ContactEditScreen(
+                    contactId = contactId,
                     initialNumber = initialNum,
                     viewModel = contactsViewModel,
                     onBack = { navController.popBackStack() }

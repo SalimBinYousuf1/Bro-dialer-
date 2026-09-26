@@ -177,6 +177,51 @@ class ContactsViewModel(
         }
     }
 
+    fun updateContact(
+        contactId: Long,
+        firstName: String,
+        lastName: String,
+        phone: String,
+        type: String = "Mobile",
+        email: String = "",
+        organization: String = "",
+        avatarUri: String? = null,
+        onResult: (Boolean) -> Unit
+    ) {
+        viewModelScope.launch {
+            val ok = contactsRepository.updateContact(contactId, firstName, lastName, phone, type, email, organization)
+            if (ok) {
+                if (avatarUri != null) {
+                    contactAvatarRepository.setAvatar(contactId, avatarUri)
+                }
+                loadContacts()
+                loadContactDetails(contactId)
+            }
+            onResult(ok)
+        }
+    }
+
+    fun getContactCustomization(contactId: Long) =
+        SalimApplication.instance.contactCustomizationRepository.getCustomization(contactId)
+
+    fun saveContactRingtone(contactId: Long, uri: String?, title: String?) {
+        viewModelScope.launch {
+            SalimApplication.instance.contactCustomizationRepository.setRingtone(contactId, uri, title)
+        }
+    }
+
+    fun saveContactCallBackground(contactId: Long, uri: android.net.Uri?) {
+        viewModelScope.launch {
+            SalimApplication.instance.contactCustomizationRepository.setCallBackground(contactId, uri)
+        }
+    }
+
+    fun saveContactDefaultSim(contactId: Long, simId: Int) {
+        viewModelScope.launch {
+            SalimApplication.instance.contactCustomizationRepository.setDefaultSim(contactId, simId)
+        }
+    }
+
     fun blockContact(contact: ContactItem, onResult: () -> Unit) {
         viewModelScope.launch {
             contact.numbers.forEach { phone ->

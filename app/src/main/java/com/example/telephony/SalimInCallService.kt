@@ -18,11 +18,15 @@ class SalimInCallService : InCallService() {
 
     override fun onCallAdded(call: Call) {
         super.onCallAdded(call)
+        if (call.state == Call.STATE_RINGING) {
+            IncomingCallNotificationHelper.showIncomingCallNotification(applicationContext, call)
+        }
         CallManager.onCallAdded(call, applicationContext)
     }
 
     override fun onCallRemoved(call: Call) {
         super.onCallRemoved(call)
+        IncomingCallNotificationHelper.dismissNotification(applicationContext)
         CallManager.onCallRemoved(call)
     }
 

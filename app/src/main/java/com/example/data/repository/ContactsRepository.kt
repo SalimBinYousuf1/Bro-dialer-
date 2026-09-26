@@ -285,6 +285,114 @@ class ContactsRepository(private val context: Context) {
         }
     }
 
+    suspend fun updateContact(
+        contactId: Long,
+        firstName: String,
+        lastName: String,
+        phone: String,
+        phoneType: String = "Mobile",
+        email: String = "",
+        organization: String = ""
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // Find raw contact ID
+            val rawContactId = getRawContactId(contactId) ?: return@withContext false
+
+            val ops = ArrayList<ContentProviderOperation>()
+
+            // Clear existing data rows for name, phone, email, organization
+            val mimetypesToDelete = arrayOf(
+                ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE,
+                ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE,
+                ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE,
+                ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE
+            )
+
+            for (mimetype in mimetypesToDelete) {
+                ops.add(
+                    ContentProviderOperation.newDelete(ContactsContract.Data.CONTENT_URI)
+                        .withSelection(
+                            "${ContactsContract.Data.RAW_CONTACT_ID} = ? AND ${ContactsContract.Data.MIMETYPE} = ?",
+                            arrayOf(rawContactId.toString(), mimetype)
+                        )
+                        .build()
+                )
+            }
+
+            // Insert updated name
+            val fullName = "$firstName $lastName".trim()
+            if (fullName.isNotBlank()) {
+                ops.add(
+                    ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.StructuredName.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.GIVEN_NAME, firstName.trim())
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.FAMILY_NAME, lastName.trim())
+                        .withValue(ContactsContract.CommonDataKinds.StructuredName.DISPLAY_NAME, fullName)
+                        .build()
+                )
+            }
+
+            // Insert updated phone
+            if (phone.isNotBlank()) {
+                val typeVal = when (phoneType) {
+                    "Home" -> ContactsContract.CommonDataKinds.Phone.TYPE_HOME
+                    "Work" -> ContactsContract.CommonDataKinds.Phone.TYPE_WORK
+                    else -> ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE
+                }
+                ops.add(
+                    ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Phone.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Phone.NUMBER, phone.trim())
+                        .withValue(ContactsContract.CommonDataKinds.Phone.TYPE, typeVal)
+                        .build()
+                )
+            }
+
+            // Insert updated email
+            if (email.isNotBlank()) {
+                ops.add(
+                    ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Email.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Email.DATA, email.trim())
+                        .withValue(ContactsContract.CommonDataKinds.Email.TYPE, ContactsContract.CommonDataKinds.Email.TYPE_WORK)
+                        .build()
+                )
+            }
+
+            // Insert updated organization
+            if (organization.isNotBlank()) {
+                ops.add(
+                    ContentProviderOperation.newInsert(ContactsContract.Data.CONTENT_URI)
+                        .withValue(ContactsContract.Data.RAW_CONTACT_ID, rawContactId)
+                        .withValue(ContactsContract.Data.MIMETYPE, ContactsContract.CommonDataKinds.Organization.CONTENT_ITEM_TYPE)
+                        .withValue(ContactsContract.CommonDataKinds.Organization.COMPANY, organization.trim())
+                        .build()
+                )
+            }
+
+            context.contentResolver.applyBatch(ContactsContract.AUTHORITY, ops)
+            true
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun getRawContactId(contactId: Long): Long? {
+        val cursor = context.contentResolver.query(
+            ContactsContract.RawContacts.CONTENT_URI,
+            arrayOf(ContactsContract.RawContacts._ID),
+            "${ContactsContract.RawContacts.CONTACT_ID} = ?",
+            arrayOf(contactId.toString()),
+            null
+        )
+        return cursor?.use {
+            if (it.moveToFirst()) it.getLong(0) else null
+        }
+    }
+
     private data class ContactItemBuilder(
         val id: Long,
         val lookupKey: String,

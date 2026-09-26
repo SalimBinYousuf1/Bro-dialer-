@@ -7,6 +7,7 @@ import com.example.data.repository.BlockedRepository
 import com.example.data.repository.CallLogRepository
 import com.example.data.repository.CallNoteRepository
 import com.example.data.repository.ContactAvatarRepository
+import com.example.data.repository.ContactCustomizationRepository
 import com.example.data.repository.ContactsRepository
 import com.example.data.repository.RecentlyDeletedRepository
 import com.example.data.repository.TelecomRepository
@@ -34,6 +35,9 @@ class SalimApplication : Application() {
     lateinit var contactAvatarRepository: ContactAvatarRepository
         private set
 
+    lateinit var contactCustomizationRepository: ContactCustomizationRepository
+        private set
+
     lateinit var callNoteRepository: CallNoteRepository
         private set
 
@@ -50,6 +54,7 @@ class SalimApplication : Application() {
         blockedRepository = BlockedRepository(this)
         telecomRepository = TelecomRepository(this)
         contactAvatarRepository = ContactAvatarRepository(database.contactAvatarDao())
+        contactCustomizationRepository = ContactCustomizationRepository(this)
         callNoteRepository = CallNoteRepository(database.callNoteDao())
         recentlyDeletedRepository = RecentlyDeletedRepository(database.recentlyDeletedContactDao())
     }

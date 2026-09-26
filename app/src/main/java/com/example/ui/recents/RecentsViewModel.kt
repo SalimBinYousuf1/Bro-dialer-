@@ -131,4 +131,11 @@ class RecentsViewModel(
     fun sendSms(number: String) {
         telecomRepository.openSms(number)
     }
+
+    fun blockNumber(number: String, contactName: String?, onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            SalimApplication.instance.blockedRepository.blockNumber(number, contactName)
+            onDone()
+        }
+    }
 }
