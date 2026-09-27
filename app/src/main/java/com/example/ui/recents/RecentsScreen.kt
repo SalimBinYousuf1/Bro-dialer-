@@ -2,6 +2,7 @@ package com.example.ui.recents
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -515,25 +516,33 @@ fun RecentsGlassRowItem(
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
     val isMissed = record.type == CallType.MISSED || record.type == CallType.REJECTED
-    // Apple standard: missed calls always display numbers/names in Apple iOS Red #FF3B30
     val callerColor = if (isMissed) BrandColors.AppleRed else textPrimary
 
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isSelectionMode) {
+                    Modifier.clickable(onClick = onPillClick)
+                } else {
+                    Modifier
+                }
+            ),
         verticalAlignment = Alignment.CenterVertically
     ) {
         if (isSelectionMode) {
             Icon(
                 imageVector = if (isSelected) Icons.Default.CheckCircle else Icons.Default.RadioButtonUnchecked,
-                contentDescription = null,
-                tint = textPrimary,
+                contentDescription = if (isSelected) "Selected" else "Not selected",
+                tint = if (isSelected) BrandColors.AppleRed else textPrimary,
                 modifier = Modifier
                     .size(28.dp)
-                    .padding(end = 8.dp)
+                    .clickable(onClick = onPillClick)
+                    .padding(end = 6.dp)
             )
         }
 
-        // Clickable Numbers Pill (Separate from Info Button)
+        // Numbers Pill
         Box(
             modifier = Modifier
                 .weight(1f)
@@ -607,18 +616,20 @@ fun RecentsGlassRowItem(
             }
         }
 
-        Spacer(modifier = Modifier.width(8.dp))
+        if (!isSelectionMode) {
+            Spacer(modifier = Modifier.width(8.dp))
 
-        // SEPARATE Info Button (Independent circular button, never triggers call, opens details)
-        FrostIconButton(
-            icon = Icons.Default.Info,
-            contentDescription = "Details for ${record.displayName}",
-            onClick = onInfoClick,
-            size = 42.dp,
-            iconSize = 20.dp,
-            elevation = 1.dp,
-            testTag = "recents_info_button_${record.id}"
-        )
+            // SEPARATE Info Button (Independent circular button, never triggers call, opens details)
+            FrostIconButton(
+                icon = Icons.Default.Info,
+                contentDescription = "Details for ${record.displayName}",
+                onClick = onInfoClick,
+                size = 42.dp,
+                iconSize = 20.dp,
+                elevation = 1.dp,
+                testTag = "recents_info_button_${record.id}"
+            )
+        }
     }
 }
 

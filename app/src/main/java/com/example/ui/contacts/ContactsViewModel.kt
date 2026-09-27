@@ -41,6 +41,12 @@ class ContactsViewModel(
     private val _currentContact = MutableStateFlow<ContactItem?>(null)
     val currentContact: StateFlow<ContactItem?> = _currentContact.asStateFlow()
 
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
+
+    private val _isSelectionMode = MutableStateFlow(false)
+    val isSelectionMode: StateFlow<Boolean> = _isSelectionMode.asStateFlow()
+
     val avatars: StateFlow<List<ContactAvatar>> = contactAvatarRepository.allAvatars
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
@@ -82,6 +88,47 @@ class ContactsViewModel(
 
     fun onSearchQueryChanged(query: String) {
         _searchQuery.value = query
+    }
+
+    fun setSelectionMode(enabled: Boolean) {
+        _isSelectionMode.value = enabled
+        if (!enabled) {
+            _selectedIds.value = emptySet()
+        }
+    }
+
+    fun toggleSelection(id: Long) {
+        val current = _selectedIds.value.toMutableSet()
+        if (current.contains(id)) {
+            current.remove(id)
+        } else {
+            current.add(id)
+        }
+        _selectedIds.value = current
+    }
+
+    fun selectAll() {
+        _selectedIds.value = filteredContacts.value.map { it.id }.toSet()
+    }
+
+    fun deselectAll() {
+        _selectedIds.value = emptySet()
+    }
+
+    fun deleteSelected(onDone: () -> Unit = {}) {
+        viewModelScope.launch {
+            val toDelete = _selectedIds.value
+            if (toDelete.isNotEmpty()) {
+                toDelete.forEach { id ->
+                    contactsRepository.deleteContact(id)
+                    contactAvatarRepository.deleteAvatar(id)
+                }
+                _rawContacts.value = _rawContacts.value.filterNot { toDelete.contains(it.id) }
+                _selectedIds.value = emptySet()
+                _isSelectionMode.value = false
+                onDone()
+            }
+        }
     }
 
     fun loadContactDetails(contactId: Long) {

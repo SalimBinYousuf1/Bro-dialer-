@@ -1,6 +1,8 @@
 package com.example
 
+import android.app.Activity
 import android.app.Application
+import android.os.Bundle
 import com.example.data.local.PreferencesManager
 import com.example.data.local.SalimDatabase
 import com.example.data.repository.BlockedRepository
@@ -44,6 +46,11 @@ class SalimApplication : Application() {
     lateinit var recentlyDeletedRepository: RecentlyDeletedRepository
         private set
 
+    var isAppInForeground: Boolean = false
+        private set
+
+    private var foregroundActivityCount = 0
+
     override fun onCreate() {
         super.onCreate()
         instance = this
@@ -57,6 +64,24 @@ class SalimApplication : Application() {
         contactCustomizationRepository = ContactCustomizationRepository(this)
         callNoteRepository = CallNoteRepository(database.callNoteDao())
         recentlyDeletedRepository = RecentlyDeletedRepository(database.recentlyDeletedContactDao())
+
+        registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
+            override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}
+            override fun onActivityStarted(activity: Activity) {
+                foregroundActivityCount++
+                isAppInForeground = foregroundActivityCount > 0
+            }
+            override fun onActivityResumed(activity: Activity) {
+                isAppInForeground = true
+            }
+            override fun onActivityPaused(activity: Activity) {}
+            override fun onActivityStopped(activity: Activity) {
+                foregroundActivityCount = maxOf(0, foregroundActivityCount - 1)
+                isAppInForeground = foregroundActivityCount > 0
+            }
+            override fun onActivitySaveInstanceState(activity: Activity, outState: Bundle) {}
+            override fun onActivityDestroyed(activity: Activity) {}
+        })
     }
 
     companion object {

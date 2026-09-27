@@ -10,6 +10,7 @@ import android.os.Looper
 import android.telecom.Call
 import android.telecom.CallAudioState
 import android.telecom.TelecomManager
+import com.example.SalimApplication
 import com.example.data.model.ActiveCallInfo
 import com.example.data.model.TelephonyCallState
 import com.example.domain.usecase.PhoneNumberHelper
@@ -73,21 +74,25 @@ object CallManager {
         call.registerCallback(callCallback)
         updateCallState(call)
 
-        // Launch CallActivity
-        val intent = Intent(context, CallActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP
+        // If app is opened or if call is outgoing, launch CallActivity immediately.
+        // If app is not opened and call is incoming, the pill notification is shown.
+        // Touching the pill opens CallActivity.
+        if (call.state != Call.STATE_RINGING || SalimApplication.instance.isAppInForeground) {
+            val intent = Intent(context, CallActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK or
+                        Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+            }
+            context.startActivity(intent)
         }
-        context.startActivity(intent)
     }
 
     fun onCallRemoved(call: Call) {
         call.unregisterCallback(callCallback)
+        IncomingCallNotificationHelper.stopRingtone()
         if (activeCall == call) {
             _currentCallInfo.value = _currentCallInfo.value?.copy(state = TelephonyCallState.DISCONNECTED)
             activeCall = null
-            // Reset state shortly after disconnect
             Handler(Looper.getMainLooper()).postDelayed({
                 _currentCallInfo.value = null
             }, 1500)
@@ -126,6 +131,7 @@ object CallManager {
         }
 
         if (stateEnum != TelephonyCallState.RINGING) {
+            IncomingCallNotificationHelper.stopRingtone()
             inCallService?.applicationContext?.let { ctx ->
                 IncomingCallNotificationHelper.dismissNotification(ctx)
             }
@@ -150,10 +156,12 @@ object CallManager {
     }
 
     fun answer() {
+        IncomingCallNotificationHelper.stopRingtone()
         activeCall?.answer(0)
     }
 
     fun disconnect() {
+        IncomingCallNotificationHelper.stopRingtone()
         if (activeCall != null) {
             activeCall?.disconnect()
         } else {

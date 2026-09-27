@@ -98,6 +98,7 @@ fun SettingsScreen(
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
     var showDefaultTabDialog by remember { mutableStateOf(false) }
+    var showThemeDialog by remember { mutableStateOf(false) }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -256,13 +257,17 @@ fun SettingsScreen(
                         color = textMuted.copy(alpha = 0.2f),
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
-                    SettingsSwitchRow(
+                    SettingsClickableRow(
                         icon = Icons.Default.DarkMode,
-                        title = "Dark Theme",
-                        subtitle = "Obsidian dark liquid glass material",
-                        checked = settings.darkTheme,
-                        onCheckedChange = viewModel::toggleDarkTheme,
-                        testTag = "setting_dark_theme"
+                        title = "App Theme Mode",
+                        subtitle = "Select appearance style",
+                        badge = when (settings.themeMode) {
+                            com.example.data.model.ThemeMode.SYSTEM -> "System (Default)"
+                            com.example.data.model.ThemeMode.LIGHT -> "Light"
+                            com.example.data.model.ThemeMode.DARK -> "Dark"
+                            com.example.data.model.ThemeMode.SALIM -> "Salim"
+                        },
+                        onClick = { showThemeDialog = true }
                     )
                 }
             }
@@ -436,6 +441,64 @@ fun SettingsScreen(
                 FrostButton(
                     text = "Cancel",
                     onClick = { showDefaultTabDialog = false }
+                )
+            },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
+        )
+    }
+
+    if (showThemeDialog) {
+        val themeOptions = listOf(
+            com.example.data.model.ThemeMode.SYSTEM to "System (Default)",
+            com.example.data.model.ThemeMode.LIGHT to "Light Theme",
+            com.example.data.model.ThemeMode.DARK to "Dark Theme",
+            com.example.data.model.ThemeMode.SALIM to "Salim (Liquid Glass Shader)"
+        )
+        AlertDialog(
+            onDismissRequest = { showThemeDialog = false },
+            title = {
+                Text(
+                    text = "Select Theme Mode",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = textPrimary
+                )
+            },
+            text = {
+                Column {
+                    themeOptions.forEach { (mode, label) ->
+                        val isSelected = settings.themeMode == mode
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    viewModel.setThemeMode(mode)
+                                    showThemeDialog = false
+                                }
+                                .padding(vertical = 12.dp, horizontal = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = if (isSelected) Icons.Default.RadioButtonChecked else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = null,
+                                tint = textPrimary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                                color = textPrimary
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                FrostButton(
+                    text = "Cancel",
+                    onClick = { showThemeDialog = false }
                 )
             },
             shape = RoundedCornerShape(22.dp),

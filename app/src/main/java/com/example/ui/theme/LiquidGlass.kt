@@ -275,6 +275,53 @@ fun FrostIconButton(
     }
 }
 
+@Composable
+fun FrostIconButton(
+    painter: androidx.compose.ui.graphics.painter.Painter,
+    contentDescription: String?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    size: Dp = 46.dp,
+    iconSize: Dp = 22.dp,
+    shape: Shape = CircleShape,
+    elevation: Dp = 2.dp,
+    enabled: Boolean = true,
+    tint: Color? = null,
+    testTag: String? = null
+) {
+    val dark = isSystemInDarkTheme()
+    val defaultTint = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
+    val finalTint = tint ?: defaultTint
+
+    Box(
+        modifier = modifier
+            .size(size)
+            .liquidGlassInteractive(
+                shape = shape,
+                elevation = elevation,
+                enabled = enabled,
+                testTag = testTag,
+                onClick = onClick
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (tint != null) {
+            Icon(
+                painter = painter,
+                contentDescription = contentDescription,
+                tint = finalTint,
+                modifier = Modifier.size(iconSize)
+            )
+        } else {
+            androidx.compose.foundation.Image(
+                painter = painter,
+                contentDescription = contentDescription,
+                modifier = Modifier.size(iconSize)
+            )
+        }
+    }
+}
+
 /**
  * Standard Neutral Glass Back Button.
  */

@@ -2,6 +2,7 @@ package com.example.ui.call
 
 import android.app.KeyguardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -9,16 +10,15 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.produceState
-import com.example.data.model.ContactCustomization
-import com.example.domain.usecase.PhoneNumberHelper
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Modifier
+import androidx.compose.runtime.produceState
 import androidx.lifecycle.lifecycleScope
 import com.example.SalimApplication
-import com.example.data.model.TelephonyCallState
+import com.example.data.model.ContactCustomization
+import com.example.domain.usecase.PhoneNumberHelper
 import com.example.telephony.CallManager
+import com.example.telephony.IncomingCallNotificationHelper
 import com.example.ui.theme.SalimTheme
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -75,12 +75,23 @@ class CallActivity : ComponentActivity() {
                 }
 
                 val effectiveBackgroundUri = contactCustomization?.callBackgroundUri ?: settings?.callBackgroundUri
+                val persistentQuickMessages = settings?.quickMessages ?: SalimApplication.instance.preferencesManager.defaultQuickReplies
 
                 CallScreen(
                     callInfo = callInfo,
                     backgroundUri = effectiveBackgroundUri,
-                    onAnswer = { CallManager.answer() },
+                    quickMessages = persistentQuickMessages,
+                    onUpdateQuickMessages = { updatedList ->
+                        lifecycleScope.launch {
+                            SalimApplication.instance.preferencesManager.updateQuickMessages(updatedList)
+                        }
+                    },
+                    onAnswer = {
+                        IncomingCallNotificationHelper.stopRingtone()
+                        CallManager.answer()
+                    },
                     onDecline = {
+                        IncomingCallNotificationHelper.stopRingtone()
                         CallManager.disconnect()
                         finish()
                     },
@@ -96,10 +107,32 @@ class CallActivity : ComponentActivity() {
                     onSaveNote = { number, name, note ->
                         lifecycleScope.launch {
                             SalimApplication.instance.callNoteRepository.saveNote(number, name, note)
+                            saveToDefaultNotesApp(name ?: number, note)
                         }
                     }
                 )
             }
         }
+    }
+
+    private fun saveToDefaultNotesApp(title: String, content: String) {
+        try {
+            val noteIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, "Call Note: $title")
+                putExtra(Intent.EXTRA_TITLE, "Call Note: $title")
+                putExtra(Intent.EXTRA_TEXT, content)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            val chooser = Intent.createChooser(noteIntent, "Save Note to Notes App").apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(chooser)
+        } catch (_: Exception) {}
+    }
+
+    override fun onDestroy() {
+        IncomingCallNotificationHelper.stopRingtone()
+        super.onDestroy()
     }
 }

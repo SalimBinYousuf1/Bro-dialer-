@@ -1,9 +1,10 @@
 package com.example.data.model
 
 enum class ThemeMode {
+    SYSTEM,
     LIGHT,
     DARK,
-    SYSTEM
+    SALIM
 }
 
 enum class ContactSortOrder {
@@ -12,7 +13,7 @@ enum class ContactSortOrder {
 }
 
 data class DialerSettings(
-    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val themeMode: ThemeMode = ThemeMode.SYSTEM,
     val hapticFeedback: Boolean = true,
     val dialpadTones: Boolean = true,
     val vibrateOnConnect: Boolean = true,
@@ -26,10 +27,16 @@ data class DialerSettings(
     val confirmDeleteCallLog: Boolean = true,
     val voicemailNumber: String = "",
     val blockUnknownNumbers: Boolean = false,
-    val defaultStartTab: String = "home", // "home", "recents", "contacts", "dialpad", "more"
+    val defaultStartTab: String = "dialpad", // "dialpad", "recents", "contacts", "home", "more"
     val callBackgroundUri: String? = null,
     val defaultRingtoneUri: String? = null,
-    val defaultRingtoneTitle: String? = "Default"
+    val defaultRingtoneTitle: String? = "Default",
+    val quickMessages: List<String> = listOf(
+        "Can't talk right now. What's up?",
+        "I'll call you right back.",
+        "On my way.",
+        "Sorry, I'm in a meeting."
+    )
 ) {
     val darkTheme: Boolean
         get() = themeMode == ThemeMode.DARK

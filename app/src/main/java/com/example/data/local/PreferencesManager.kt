@@ -38,6 +38,7 @@ class PreferencesManager(private val context: Context) {
         val CALL_BACKGROUND_URI = stringPreferencesKey("call_background_uri")
         val DEFAULT_RINGTONE_URI = stringPreferencesKey("default_ringtone_uri")
         val DEFAULT_RINGTONE_TITLE = stringPreferencesKey("default_ringtone_title")
+        val QUICK_MESSAGES = stringPreferencesKey("quick_messages")
 
         // Contacts Settings
         val CONTACTS_DISPLAY_PICTURE = booleanPreferencesKey("contacts_display_picture")
@@ -49,11 +50,25 @@ class PreferencesManager(private val context: Context) {
         val CONTACTS_SAVE_LOCATION = stringPreferencesKey("contacts_save_location")
     }
 
+    val defaultQuickReplies = listOf(
+        "Can't talk right now. What's up?",
+        "I'll call you right back.",
+        "On my way.",
+        "Sorry, I'm in a meeting."
+    )
+
     val settingsFlow: Flow<DialerSettings> = context.dataStore.data.map { prefs ->
-        val themeModeStr = prefs[Keys.THEME_MODE] ?: ThemeMode.LIGHT.name
+        val themeModeStr = prefs[Keys.THEME_MODE] ?: ThemeMode.SYSTEM.name
         val sortOrderStr = prefs[Keys.CONTACT_SORT_ORDER] ?: ContactSortOrder.FIRST_NAME.name
+        val quickMessagesStr = prefs[Keys.QUICK_MESSAGES]
+        val quickList = if (!quickMessagesStr.isNullOrBlank()) {
+            quickMessagesStr.split("|||").filter { it.isNotBlank() }
+        } else {
+            defaultQuickReplies
+        }
+
         DialerSettings(
-            themeMode = try { ThemeMode.valueOf(themeModeStr) } catch (_: Exception) { ThemeMode.LIGHT },
+            themeMode = try { ThemeMode.valueOf(themeModeStr) } catch (_: Exception) { ThemeMode.SYSTEM },
             hapticFeedback = prefs[Keys.HAPTIC_FEEDBACK] ?: true,
             dialpadTones = prefs[Keys.DIALPAD_TONES] ?: true,
             vibrateOnConnect = prefs[Keys.VIBRATE_ON_CONNECT] ?: true,
@@ -67,10 +82,11 @@ class PreferencesManager(private val context: Context) {
             confirmDeleteCallLog = prefs[Keys.CONFIRM_DELETE_CALL_LOG] ?: true,
             voicemailNumber = prefs[Keys.VOICEMAIL_NUMBER] ?: "",
             blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false,
-            defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "home",
+            defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "dialpad",
             callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI],
             defaultRingtoneUri = prefs[Keys.DEFAULT_RINGTONE_URI],
-            defaultRingtoneTitle = prefs[Keys.DEFAULT_RINGTONE_TITLE] ?: "Default"
+            defaultRingtoneTitle = prefs[Keys.DEFAULT_RINGTONE_TITLE] ?: "Default",
+            quickMessages = if (quickList.isNotEmpty()) quickList else defaultQuickReplies
         )
     }
 
@@ -105,6 +121,7 @@ class PreferencesManager(private val context: Context) {
             prefs[Keys.VOICEMAIL_NUMBER] = updated.voicemailNumber
             prefs[Keys.BLOCK_UNKNOWN_NUMBERS] = updated.blockUnknownNumbers
             prefs[Keys.DEFAULT_START_TAB] = updated.defaultStartTab
+            prefs[Keys.QUICK_MESSAGES] = updated.quickMessages.joinToString("|||")
             if (updated.callBackgroundUri != null) {
                 prefs[Keys.CALL_BACKGROUND_URI] = updated.callBackgroundUri
             } else {
@@ -116,6 +133,12 @@ class PreferencesManager(private val context: Context) {
                 prefs.remove(Keys.DEFAULT_RINGTONE_URI)
             }
             prefs[Keys.DEFAULT_RINGTONE_TITLE] = updated.defaultRingtoneTitle ?: "Default"
+        }
+    }
+
+    suspend fun updateQuickMessages(messages: List<String>) {
+        context.dataStore.edit {
+            it[Keys.QUICK_MESSAGES] = messages.joinToString("|||")
         }
     }
 

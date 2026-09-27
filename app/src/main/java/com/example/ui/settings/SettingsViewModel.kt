@@ -19,6 +19,14 @@ class SettingsViewModel(
         .settingsFlow
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), DialerSettings())
 
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch {
+            preferencesManager.updateSettings {
+                it.copy(themeMode = mode)
+            }
+        }
+    }
+
     fun toggleDarkTheme(enabled: Boolean) {
         viewModelScope.launch {
             preferencesManager.updateSettings {

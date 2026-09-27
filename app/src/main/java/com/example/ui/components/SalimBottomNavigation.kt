@@ -43,8 +43,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.navigation.Screen
-import com.example.ui.theme.GlassBorderDark
-import com.example.ui.theme.GlassBorderLight
 import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
@@ -58,10 +56,10 @@ sealed class BottomNavItem(
     val unselectedIcon: ImageVector,
     val testTag: String
 ) {
-    data object Home : BottomNavItem(Screen.Home.route, "Home", Icons.Filled.Home, Icons.Outlined.Home, "nav_home")
+    data object Dialpad : BottomNavItem(Screen.Dialpad.route, "Keypad", Icons.Filled.Dialpad, Icons.Outlined.Dialpad, "nav_dialpad")
     data object Recents : BottomNavItem(Screen.Recents.route, "Recents", Icons.Filled.History, Icons.Outlined.History, "nav_recents")
     data object Contacts : BottomNavItem(Screen.Contacts.route, "Contacts", Icons.Filled.Person, Icons.Outlined.Person, "nav_contacts")
-    data object Dialpad : BottomNavItem(Screen.Dialpad.route, "Dialpad", Icons.Filled.Dialpad, Icons.Outlined.Dialpad, "nav_dialpad")
+    data object Home : BottomNavItem(Screen.Home.route, "Home", Icons.Filled.Home, Icons.Outlined.Home, "nav_home")
     data object More : BottomNavItem(Screen.More.route, "More", Icons.Filled.MoreHoriz, Icons.Outlined.MoreHoriz, "nav_more")
 }
 
@@ -75,27 +73,29 @@ fun SalimBottomNavigation(
     val haptic = LocalHapticFeedback.current
 
     val items = listOf(
-        BottomNavItem.Home,
+        BottomNavItem.Dialpad,
         BottomNavItem.Recents,
         BottomNavItem.Contacts,
-        BottomNavItem.Dialpad,
+        BottomNavItem.Home,
         BottomNavItem.More
     )
 
-    val barShape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp)
-    val pillShape = RoundedCornerShape(14.dp)
+    val floatingPillShape = RoundedCornerShape(26.dp)
+    val itemPillShape = RoundedCornerShape(16.dp)
 
+    // Sits safely above system navigation bar and phone margins
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .liquidGlass(shape = barShape, elevation = 6.dp)
             .navigationBarsPadding()
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .liquidGlass(shape = floatingPillShape, elevation = 4.dp)
+            .padding(horizontal = 6.dp, vertical = 4.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(56.dp),
+                .height(54.dp),
             horizontalArrangement = Arrangement.SpaceAround,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -105,7 +105,7 @@ fun SalimBottomNavigation(
                 val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
                 val scale by animateFloatAsState(
-                    targetValue = if (selected) 1.0f else 0.96f,
+                    targetValue = if (selected) 1.0f else 0.95f,
                     animationSpec = spring(dampingRatio = 0.75f, stiffness = 420f),
                     label = "nav_item_scale"
                 )
@@ -113,12 +113,12 @@ fun SalimBottomNavigation(
                 Box(
                     modifier = Modifier
                         .weight(1f)
-                        .height(50.dp)
+                        .height(48.dp)
                         .scale(scale)
                         .then(
                             if (selected) {
                                 Modifier.liquidGlass(
-                                    shape = pillShape,
+                                    shape = itemPillShape,
                                     elevation = 2.dp,
                                     isElevated = true
                                 )

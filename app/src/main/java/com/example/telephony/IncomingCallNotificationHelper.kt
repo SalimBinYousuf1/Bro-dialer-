@@ -6,6 +6,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
@@ -22,26 +23,25 @@ import kotlinx.coroutines.launch
 
 object IncomingCallNotificationHelper {
 
-    const val CHANNEL_ID = "incoming_calls"
+    const val CHANNEL_ID = "incoming_calls_pill"
     const val NOTIFICATION_ID = 2001
+
     private var activeRingtone: Ringtone? = null
+    private var activeMediaPlayer: MediaPlayer? = null
+    private val ringtoneLock = Any()
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val name = "Incoming Calls"
-            val descriptionText = "Heads-up notifications for incoming phone calls"
+            val descriptionText = "Heads-up pill notification for incoming calls"
             val importance = NotificationManager.IMPORTANCE_HIGH
             val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
                 description = descriptionText
                 lockscreenVisibility = android.app.Notification.VISIBILITY_PUBLIC
                 enableVibration(true)
                 vibrationPattern = longArrayOf(0, 800, 800, 800)
-                val ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-                val audioAttributes = AudioAttributes.Builder()
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
-                    .build()
-                setSound(ringtoneUri, audioAttributes)
+                // Set channel silent here so our custom looping audio manager handles 100% ringtone playback
+                setSound(null, null)
             }
             val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)
@@ -63,7 +63,7 @@ object IncomingCallNotificationHelper {
             "Incoming Phone Call"
         }
 
-        // Start ringing with custom ringtone if available
+        // Start ringing with custom contact or chosen default ringtone with 100% looping reliability
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 var chosenUriStr: String? = null
@@ -85,20 +85,20 @@ object IncomingCallNotificationHelper {
             } catch (_: Exception) {}
         }
 
-        // Full screen & content intent to CallActivity
+        // Tapping the pill notification opens CallActivity
         val fullScreenIntent = Intent(context, CallActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
-        val fullScreenPendingIntent = PendingIntent.getActivity(
+        val contentPendingIntent = PendingIntent.getActivity(
             context,
             0,
             fullScreenIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action: Answer Call
+        // Action: Answer Call (Green)
         val answerIntent = Intent(context, CallNotificationReceiver::class.java).apply {
             action = CallNotificationReceiver.ACTION_ANSWER
         }
@@ -109,7 +109,7 @@ object IncomingCallNotificationHelper {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        // Action: Decline Call
+        // Action: Decline Call (Red)
         val declineIntent = Intent(context, CallNotificationReceiver::class.java).apply {
             action = CallNotificationReceiver.ACTION_DECLINE
         }
@@ -129,35 +129,76 @@ object IncomingCallNotificationHelper {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(false)
             .setOngoing(true)
-            .setContentIntent(fullScreenPendingIntent)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setContentIntent(contentPendingIntent)
+            .setFullScreenIntent(contentPendingIntent, true)
             .addAction(android.R.drawable.ic_menu_close_clear_cancel, "Decline", declinePendingIntent)
             .addAction(android.R.drawable.sym_action_call, "Answer", answerPendingIntent)
-            .setColor(0xFF24A1DE.toInt()) // Liquid blue accent
+            .setColor(0xFF34C759.toInt()) // Apple Emerald Green
             .build()
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
+    /**
+     * Plays the ringtone continuously in a loop until answered, declined, or disconnected.
+     * Uses MediaPlayer as the primary engine for continuous looping across all Android versions,
+     * with RingtoneManager as fallback.
+     */
     fun playRingtone(context: Context, customUriStr: String?) {
-        stopRingtone()
-        try {
-            val uri = if (!customUriStr.isNullOrBlank()) Uri.parse(customUriStr) else RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
-            activeRingtone = RingtoneManager.getRingtone(context.applicationContext, uri)?.apply {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    isLooping = true
+        synchronized(ringtoneLock) {
+            stopRingtone()
+            try {
+                val uri = if (!customUriStr.isNullOrBlank()) {
+                    Uri.parse(customUriStr)
+                } else {
+                    RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
                 }
-                play()
-            }
-        } catch (_: Exception) {}
+
+                val audioAttributes = AudioAttributes.Builder()
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(AudioAttributes.USAGE_NOTIFICATION_RINGTONE)
+                    .build()
+
+                try {
+                    activeMediaPlayer = MediaPlayer().apply {
+                        setDataSource(context.applicationContext, uri)
+                        setAudioAttributes(audioAttributes)
+                        isLooping = true
+                        prepare()
+                        start()
+                    }
+                } catch (_: Exception) {
+                    // Fallback to RingtoneManager
+                    activeRingtone = RingtoneManager.getRingtone(context.applicationContext, uri)?.apply {
+                        this.audioAttributes = audioAttributes
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                            isLooping = true
+                        }
+                        play()
+                    }
+                }
+            } catch (_: Exception) {}
+        }
     }
 
     fun stopRingtone() {
-        try {
-            activeRingtone?.stop()
-            activeRingtone = null
-        } catch (_: Exception) {}
+        synchronized(ringtoneLock) {
+            try {
+                activeMediaPlayer?.let {
+                    if (it.isPlaying) {
+                        it.stop()
+                    }
+                    it.release()
+                }
+                activeMediaPlayer = null
+            } catch (_: Exception) {}
+
+            try {
+                activeRingtone?.stop()
+                activeRingtone = null
+            } catch (_: Exception) {}
+        }
     }
 
     fun dismissNotification(context: Context) {

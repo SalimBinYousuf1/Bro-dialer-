@@ -91,26 +91,50 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val settings by settingsViewModel.settings.collectAsState()
-            val useDark = settings.darkTheme || isSystemInDarkTheme()
+            val themeMode = settings.themeMode
 
-            SalimTheme(darkTheme = useDark) {
-                MainAppScaffold(
-                    dialpadViewModel = dialpadViewModel,
-                    contactsViewModel = contactsViewModel,
-                    recentsViewModel = recentsViewModel,
-                    homeViewModel = homeViewModel,
-                    blockedNumbersViewModel = blockedNumbersViewModel,
-                    settingsViewModel = settingsViewModel,
-                    defaultStartTab = settings.defaultStartTab,
-                    onRequestPermissions = {
-                        permissionLauncher.launch(PermissionHelper.MANDATORY_PERMISSIONS)
-                    },
-                    onRequestDefaultDialer = {
-                        RoleHelper.requestDefaultDialerIntent(this)?.let {
-                            roleLauncher.launch(it)
-                        }
+            SalimTheme(themeMode = themeMode) {
+                if (themeMode == com.example.data.model.ThemeMode.SALIM) {
+                    com.example.ui.components.LiquidGlassSystem {
+                        MainAppScaffold(
+                            dialpadViewModel = dialpadViewModel,
+                            contactsViewModel = contactsViewModel,
+                            recentsViewModel = recentsViewModel,
+                            homeViewModel = homeViewModel,
+                            blockedNumbersViewModel = blockedNumbersViewModel,
+                            settingsViewModel = settingsViewModel,
+                            themeMode = themeMode,
+                            defaultStartTab = settings.defaultStartTab,
+                            onRequestPermissions = {
+                                permissionLauncher.launch(PermissionHelper.MANDATORY_PERMISSIONS)
+                            },
+                            onRequestDefaultDialer = {
+                                RoleHelper.requestDefaultDialerIntent(this@MainActivity)?.let {
+                                    roleLauncher.launch(it)
+                                }
+                            }
+                        )
                     }
-                )
+                } else {
+                    MainAppScaffold(
+                        dialpadViewModel = dialpadViewModel,
+                        contactsViewModel = contactsViewModel,
+                        recentsViewModel = recentsViewModel,
+                        homeViewModel = homeViewModel,
+                        blockedNumbersViewModel = blockedNumbersViewModel,
+                        settingsViewModel = settingsViewModel,
+                        themeMode = themeMode,
+                        defaultStartTab = settings.defaultStartTab,
+                        onRequestPermissions = {
+                            permissionLauncher.launch(PermissionHelper.MANDATORY_PERMISSIONS)
+                        },
+                        onRequestDefaultDialer = {
+                            RoleHelper.requestDefaultDialerIntent(this@MainActivity)?.let {
+                                roleLauncher.launch(it)
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -140,28 +164,29 @@ fun MainAppScaffold(
     homeViewModel: HomeViewModel,
     blockedNumbersViewModel: BlockedNumbersViewModel,
     settingsViewModel: SettingsViewModel,
-    defaultStartTab: String = "home",
+    themeMode: com.example.data.model.ThemeMode = com.example.data.model.ThemeMode.SYSTEM,
+    defaultStartTab: String = "dialpad",
     onRequestPermissions: () -> Unit,
     onRequestDefaultDialer: () -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Home.route
+    val currentRoute = navBackStackEntry?.destination?.route ?: Screen.Dialpad.route
 
     var navigatedInitialTab by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(defaultStartTab) {
-        if (!navigatedInitialTab && defaultStartTab.isNotBlank() && defaultStartTab != "home") {
+        if (!navigatedInitialTab && defaultStartTab.isNotBlank() && defaultStartTab != "dialpad") {
             navigatedInitialTab = true
             val target = when (defaultStartTab) {
+                "home" -> Screen.Home.route
                 "recents" -> Screen.Recents.route
                 "contacts" -> Screen.Contacts.route
-                "dialpad" -> Screen.Dialpad.route
                 "more" -> Screen.More.route
                 else -> null
             }
             target?.let {
                 navController.navigate(it) {
-                    popUpTo(Screen.Home.route) { saveState = true }
+                    popUpTo(Screen.Dialpad.route) { saveState = true }
                     launchSingleTop = true
                     restoreState = true
                 }
@@ -170,34 +195,41 @@ fun MainAppScaffold(
     }
 
     val bottomBarRoutes = listOf(
-        Screen.Home.route,
+        Screen.Dialpad.route,
         Screen.Recents.route,
         Screen.Contacts.route,
-        Screen.Dialpad.route,
+        Screen.Home.route,
         Screen.More.route
     )
 
     val showBottomBar = currentRoute in bottomBarRoutes
 
     val isDark = isSystemInDarkTheme()
+    val containerBg = when (themeMode) {
+        com.example.data.model.ThemeMode.SALIM -> androidx.compose.ui.graphics.Color.Transparent
+        com.example.data.model.ThemeMode.DARK -> com.example.ui.theme.GlassBackgroundDark
+        com.example.data.model.ThemeMode.LIGHT -> com.example.ui.theme.GlassBackgroundLight
+        com.example.data.model.ThemeMode.SYSTEM -> if (isDark) com.example.ui.theme.GlassBackgroundDark else com.example.ui.theme.GlassBackgroundLight
+    }
+
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        containerColor = if (isDark) com.example.ui.theme.GlassBackgroundDark else com.example.ui.theme.GlassBackgroundLight,
+        containerColor = containerBg,
         bottomBar = {
             if (showBottomBar) {
                 SalimBottomNavigation(
                     currentRoute = currentRoute,
                     onNavigate = { targetRoute ->
-                        if (targetRoute == Screen.Home.route) {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Home.route) {
+                        if (targetRoute == Screen.Dialpad.route) {
+                            navController.navigate(Screen.Dialpad.route) {
+                                popUpTo(Screen.Dialpad.route) {
                                     inclusive = false
                                 }
                                 launchSingleTop = true
                             }
                         } else {
                             navController.navigate(targetRoute) {
-                                popUpTo(Screen.Home.route) {
+                                popUpTo(Screen.Dialpad.route) {
                                     saveState = true
                                 }
                                 launchSingleTop = true
@@ -211,7 +243,7 @@ fun MainAppScaffold(
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Screen.Home.route,
+            startDestination = Screen.Dialpad.route,
             modifier = Modifier.padding(innerPadding)
         ) {
             composable(Screen.Home.route) {

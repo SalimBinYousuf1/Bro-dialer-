@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.CallType
 import com.example.data.model.ContactItem
+import com.example.domain.usecase.PhoneNumberHelper
 import com.example.ui.components.SalimAvatar
 import com.example.ui.navigation.Screen
 import com.example.ui.theme.FrostButton
@@ -344,8 +345,10 @@ fun HomeScreen(
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
+                                    val isSavedContact = !record.callerName.isNullOrBlank()
+                                    val formattedNumber = PhoneNumberHelper.formatForDisplay(record.number)
                                     Text(
-                                        text = record.callerName ?: record.number,
+                                        text = if (isSavedContact) record.callerName!! else formattedNumber,
                                         style = MaterialTheme.typography.bodyLarge.copy(
                                             fontWeight = FontWeight.SemiBold,
                                             fontSize = 15.sp
@@ -353,6 +356,17 @@ fun HomeScreen(
                                         color = textPrimary,
                                         maxLines = 1
                                     )
+                                    if (isSavedContact) {
+                                        Text(
+                                            text = formattedNumber,
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                fontWeight = FontWeight.Normal,
+                                                fontSize = 12.sp
+                                            ),
+                                            color = textMuted,
+                                            maxLines = 1
+                                        )
+                                    }
                                     Spacer(modifier = Modifier.height(2.dp))
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         val typeIcon = when (record.type) {

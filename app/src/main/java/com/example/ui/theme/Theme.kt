@@ -5,6 +5,8 @@ import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -13,11 +15,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.node.DelegatableNode
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
+import com.example.data.model.ThemeMode
 
-private object NoRippleIndication : IndicationNodeFactory {
+object NoRippleIndication : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatableNode {
         return object : Modifier.Node() {}
     }
@@ -62,12 +64,21 @@ private val LightColorScheme = lightColorScheme(
     onError = GlassPureWhite
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SalimTheme(
+    themeMode: ThemeMode = ThemeMode.SYSTEM,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    val effectiveDark = when (themeMode) {
+        ThemeMode.SYSTEM -> darkTheme
+        ThemeMode.LIGHT -> false
+        ThemeMode.DARK -> true
+        ThemeMode.SALIM -> false
+    }
+
+    val colorScheme = if (effectiveDark) DarkColorScheme else LightColorScheme
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -76,8 +87,8 @@ fun SalimTheme(
                 window.statusBarColor = android.graphics.Color.TRANSPARENT
                 window.navigationBarColor = android.graphics.Color.TRANSPARENT
                 WindowCompat.getInsetsController(window, view).apply {
-                    isAppearanceLightStatusBars = !darkTheme
-                    isAppearanceLightNavigationBars = !darkTheme
+                    isAppearanceLightStatusBars = !effectiveDark
+                    isAppearanceLightNavigationBars = !effectiveDark
                 }
             }
         }
@@ -88,7 +99,8 @@ fun SalimTheme(
         typography = Typography
     ) {
         CompositionLocalProvider(
-            LocalIndication provides NoRippleIndication
+            LocalIndication provides NoRippleIndication,
+            LocalRippleConfiguration provides null
         ) {
             content()
         }

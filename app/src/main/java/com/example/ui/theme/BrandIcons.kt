@@ -1,9 +1,17 @@
 package com.example.ui.theme
 
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.materialIcon
 import androidx.compose.material.icons.materialPath
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import com.example.R
 
 object BrandColors {
     val WhatsApp = Color(0xFF25D366)
@@ -14,45 +22,62 @@ object BrandColors {
 
 object BrandIcons {
 
+    /**
+     * Exact Official WhatsApp Logo Composable rendering authentic vector drawable.
+     */
+    @Composable
+    fun WhatsAppLogo(
+        modifier: Modifier = Modifier,
+        size: Dp = 24.dp
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.ic_whatsapp_logo),
+            contentDescription = "WhatsApp",
+            modifier = modifier.size(size)
+        )
+    }
+
     val WhatsApp: ImageVector
         get() {
             if (_whatsapp != null) return _whatsapp!!
             _whatsapp = materialIcon(name = "WhatsApp") {
-                // Speech bubble with handset contour
                 materialPath {
-                    moveTo(12.0f, 2.0f)
-                    curveTo(6.48f, 2.0f, 2.0f, 6.48f, 2.0f, 12.0f)
-                    curveTo(2.0f, 13.82f, 2.49f, 15.53f, 3.35f, 17.01f)
-                    lineTo(2.0f, 22.0f)
-                    lineTo(7.14f, 20.67f)
-                    curveTo(8.58f, 21.52f, 10.24f, 22.0f, 12.0f, 22.0f)
-                    curveTo(17.52f, 22.0f, 22.0f, 17.52f, 22.0f, 12.0f)
-                    curveTo(22.0f, 6.48f, 17.52f, 2.0f, 12.0f, 2.0f)
+                    // Outer green speech bubble contour
+                    moveTo(12.04f, 2.0f)
+                    curveTo(6.58f, 2.0f, 2.13f, 6.45f, 2.13f, 11.91f)
+                    curveTo(2.13f, 13.66f, 2.59f, 15.36f, 3.45f, 16.86f)
+                    lineTo(2.05f, 22.0f)
+                    lineTo(7.3f, 20.63f)
+                    curveTo(8.75f, 21.41f, 10.38f, 21.83f, 12.04f, 21.83f)
+                    curveTo(17.5f, 21.83f, 21.95f, 17.38f, 21.95f, 11.92f)
+                    curveTo(21.95f, 9.27f, 20.92f, 6.78f, 19.05f, 4.91f)
+                    curveTo(17.18f, 3.03f, 14.69f, 2.0f, 12.04f, 2.0f)
                     close()
 
-                    // Telephone handset inside
-                    moveTo(16.92f, 14.94f)
-                    curveTo(16.71f, 15.53f, 15.89f, 16.03f, 15.24f, 16.17f)
-                    curveTo(14.79f, 16.27f, 14.21f, 16.34f, 12.26f, 15.53f)
-                    curveTo(9.76f, 14.5f, 8.15f, 11.96f, 8.03f, 11.79f)
-                    curveTo(7.91f, 11.63f, 7.02f, 10.45f, 7.02f, 9.23f)
-                    curveTo(7.02f, 8.01f, 7.64f, 7.42f, 7.89f, 7.16f)
-                    curveTo(8.14f, 6.9f, 8.43f, 6.84f, 8.64f, 6.84f)
-                    curveTo(8.85f, 6.84f, 9.06f, 6.84f, 9.24f, 6.85f)
-                    curveTo(9.43f, 6.86f, 9.68f, 6.78f, 9.94f, 7.4f)
-                    curveTo(10.21f, 8.05f, 10.87f, 9.67f, 10.95f, 9.84f)
-                    curveTo(11.03f, 10.01f, 11.07f, 10.22f, 10.95f, 10.46f)
-                    curveTo(10.83f, 10.7f, 10.74f, 10.83f, 10.58f, 11.02f)
-                    curveTo(10.41f, 11.21f, 10.23f, 11.43f, 10.08f, 11.61f)
-                    curveTo(9.91f, 11.8f, 9.74f, 12.01f, 9.94f, 12.35f)
-                    curveTo(10.14f, 12.69f, 10.82f, 13.8f, 11.83f, 14.7f)
-                    curveTo(13.13f, 15.86f, 14.18f, 16.24f, 14.52f, 16.38f)
-                    curveTo(14.86f, 16.52f, 15.06f, 16.49f, 15.26f, 16.25f)
-                    curveTo(15.46f, 16.01f, 16.12f, 15.24f, 16.36f, 14.91f)
-                    curveTo(16.6f, 14.58f, 16.84f, 14.62f, 17.13f, 14.73f)
-                    curveTo(17.42f, 14.84f, 18.97f, 15.61f, 19.29f, 15.77f)
-                    curveTo(19.61f, 15.93f, 19.82f, 16.01f, 19.89f, 16.14f)
-                    curveTo(19.96f, 16.27f, 19.96f, 16.89f, 16.92f, 14.94f)
+                    // Phone receiver silhouette cutout
+                    moveTo(17.47f, 14.38f)
+                    curveTo(17.17f, 14.23f, 15.71f, 13.51f, 15.44f, 13.41f)
+                    curveTo(15.17f, 13.31f, 14.97f, 13.26f, 14.77f, 13.56f)
+                    curveTo(14.57f, 13.86f, 14.0f, 14.56f, 13.82f, 14.76f)
+                    curveTo(13.65f, 14.96f, 13.47f, 14.99f, 13.17f, 14.84f)
+                    curveTo(12.87f, 14.69f, 11.91f, 14.37f, 10.77f, 13.36f)
+                    curveTo(9.89f, 12.57f, 9.29f, 11.59f, 9.12f, 11.29f)
+                    curveTo(8.94f, 10.99f, 9.1f, 10.83f, 9.25f, 10.68f)
+                    curveTo(9.39f, 10.55f, 9.55f, 10.33f, 9.7f, 10.15f)
+                    curveTo(9.85f, 9.98f, 9.9f, 9.85f, 10.0f, 9.65f)
+                    curveTo(10.1f, 9.45f, 10.05f, 9.28f, 9.97f, 9.13f)
+                    curveTo(9.9f, 8.98f, 9.3f, 7.5f, 9.05f, 6.9f)
+                    curveTo(8.81f, 6.32f, 8.56f, 6.4f, 8.38f, 6.39f)
+                    curveTo(8.21f, 6.38f, 8.01f, 6.38f, 7.81f, 6.38f)
+                    curveTo(7.61f, 6.38f, 7.28f, 6.46f, 7.01f, 6.76f)
+                    curveTo(6.73f, 7.06f, 5.96f, 7.78f, 5.96f, 9.26f)
+                    curveTo(5.96f, 10.74f, 7.04f, 12.16f, 7.19f, 12.36f)
+                    curveTo(7.34f, 12.56f, 9.31f, 15.59f, 12.33f, 16.89f)
+                    curveTo(13.05f, 17.2f, 13.61f, 17.39f, 14.05f, 17.53f)
+                    curveTo(14.77f, 17.76f, 15.43f, 17.73f, 15.95f, 17.65f)
+                    curveTo(16.53f, 17.56f, 17.73f, 16.92f, 17.98f, 16.22f)
+                    curveTo(18.23f, 15.52f, 18.23f, 14.92f, 18.15f, 14.79f)
+                    curveTo(18.08f, 14.67f, 17.88f, 14.53f, 17.47f, 14.38f)
                     close()
                 }
             }
