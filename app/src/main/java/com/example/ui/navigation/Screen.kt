@@ -10,11 +10,13 @@ sealed class Screen(val route: String) {
     data object Voicemail : Screen("voicemail")
     data object BlockedNumbers : Screen("blocked_numbers")
     data object Settings : Screen("settings")
-    data object ContactDetail : Screen("contact_detail/{contactId}") {
-        fun createRoute(contactId: Long) = "contact_detail/$contactId"
+    data object ContactDetail : Screen("contact_detail/{contactId}?number={number}") {
+        fun createRoute(contactId: Long, number: String = "") =
+            "contact_detail/$contactId?number=${android.net.Uri.encode(number)}"
     }
-    data object ContactEdit : Screen("contact_edit/{contactId}") {
-        fun createRoute(contactId: Long) = "contact_edit/$contactId"
+    data object ContactEdit : Screen("contact_edit/{contactId}?number={number}") {
+        fun createRoute(contactId: Long, number: String = "") =
+            "contact_edit/$contactId?number=${android.net.Uri.encode(number)}"
     }
     data object ContactsSettings : Screen("contacts_settings")
     data object Permissions : Screen("permissions")

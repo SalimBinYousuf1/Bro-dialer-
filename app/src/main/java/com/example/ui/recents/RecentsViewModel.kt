@@ -50,13 +50,44 @@ class RecentsViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val callLogObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            super.onChange(selfChange, uri)
+            loadCallLogs()
+        }
+    }
+
     init {
         loadCallLogs()
+        try {
+            SalimApplication.instance.contentResolver.registerContentObserver(
+                android.provider.CallLog.Calls.CONTENT_URI,
+                true,
+                callLogObserver
+            )
+        } catch (_: Exception) {}
+
+        viewModelScope.launch {
+            com.example.telephony.CallManager.currentCallInfo.collect { callInfo ->
+                if (callInfo == null || callInfo.state == com.example.data.model.TelephonyCallState.DISCONNECTED || callInfo.state == com.example.data.model.TelephonyCallState.IDLE) {
+                    loadCallLogs()
+                }
+            }
+        }
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            SalimApplication.instance.contentResolver.unregisterContentObserver(callLogObserver)
+        } catch (_: Exception) {}
     }
 
     fun loadCallLogs() {
         viewModelScope.launch {
-            _isLoading.value = true
+            if (_rawCalls.value.isEmpty()) {
+                _isLoading.value = true
+            }
             val logs = callLogRepository.loadCallLogs()
             _rawCalls.value = logs
             _isLoading.value = false

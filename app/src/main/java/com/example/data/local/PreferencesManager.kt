@@ -36,6 +36,8 @@ class PreferencesManager(private val context: Context) {
         val BLOCK_UNKNOWN_NUMBERS = booleanPreferencesKey("block_unknown_numbers")
         val DEFAULT_START_TAB = stringPreferencesKey("default_start_tab")
         val CALL_BACKGROUND_URI = stringPreferencesKey("call_background_uri")
+        val DEFAULT_RINGTONE_URI = stringPreferencesKey("default_ringtone_uri")
+        val DEFAULT_RINGTONE_TITLE = stringPreferencesKey("default_ringtone_title")
 
         // Contacts Settings
         val CONTACTS_DISPLAY_PICTURE = booleanPreferencesKey("contacts_display_picture")
@@ -66,7 +68,9 @@ class PreferencesManager(private val context: Context) {
             voicemailNumber = prefs[Keys.VOICEMAIL_NUMBER] ?: "",
             blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false,
             defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "home",
-            callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI]
+            callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI],
+            defaultRingtoneUri = prefs[Keys.DEFAULT_RINGTONE_URI],
+            defaultRingtoneTitle = prefs[Keys.DEFAULT_RINGTONE_TITLE] ?: "Default"
         )
     }
 
@@ -106,6 +110,12 @@ class PreferencesManager(private val context: Context) {
             } else {
                 prefs.remove(Keys.CALL_BACKGROUND_URI)
             }
+            if (updated.defaultRingtoneUri != null) {
+                prefs[Keys.DEFAULT_RINGTONE_URI] = updated.defaultRingtoneUri
+            } else {
+                prefs.remove(Keys.DEFAULT_RINGTONE_URI)
+            }
+            prefs[Keys.DEFAULT_RINGTONE_TITLE] = updated.defaultRingtoneTitle ?: "Default"
         }
     }
 

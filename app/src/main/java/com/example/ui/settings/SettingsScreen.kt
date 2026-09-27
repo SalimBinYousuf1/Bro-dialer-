@@ -1,6 +1,9 @@
 package com.example.ui.settings
 
+import android.content.Intent
+import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -31,6 +34,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material.icons.filled.RadioButtonChecked
@@ -100,6 +104,27 @@ fun SettingsScreen(
     ) { uri: Uri? ->
         if (uri != null) {
             viewModel.setCallBackgroundUri(uri.toString())
+        }
+    }
+
+    val ringtonePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            val uri: Uri? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                result.data?.getParcelableExtra(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            }
+            val title = if (uri != null) {
+                try {
+                    RingtoneManager.getRingtone(context, uri)?.getTitle(context) ?: "Custom Ringtone"
+                } catch (_: Exception) {
+                    "Custom Ringtone"
+                }
+            } else "Default Phone Ringtone"
+            viewModel.setDefaultRingtone(uri?.toString(), title)
         }
     }
 
@@ -238,6 +263,35 @@ fun SettingsScreen(
                         checked = settings.darkTheme,
                         onCheckedChange = viewModel::toggleDarkTheme,
                         testTag = "setting_dark_theme"
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section: Sounds & Ringtone
+            SettingsSectionHeader("SOUNDS & RINGTONE")
+            FrostCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    SettingsClickableRow(
+                        icon = Icons.Default.MusicNote,
+                        title = "Default Phone Ringtone",
+                        subtitle = settings.defaultRingtoneTitle ?: "Default Phone Ringtone",
+                        badge = "Change",
+                        onClick = {
+                            val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+                                putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Phone Ringtone")
+                                settings.defaultRingtoneUri?.let {
+                                    putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                                }
+                            }
+                            try {
+                                ringtonePickerLauncher.launch(intent)
+                            } catch (_: Exception) {}
+                        }
                     )
                 }
             }

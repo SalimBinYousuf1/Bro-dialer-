@@ -62,4 +62,12 @@ class SettingsViewModel(
             preferencesManager.updateCallBackgroundUri(uri)
         }
     }
+
+    fun setDefaultRingtone(uri: String?, title: String) {
+        viewModelScope.launch {
+            preferencesManager.updateSettings {
+                it.copy(defaultRingtoneUri = uri, defaultRingtoneTitle = title)
+            }
+        }
+    }
 }

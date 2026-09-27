@@ -35,7 +35,7 @@ class TelecomRepository(private val context: Context) {
         }
     }
 
-    fun makeCall(rawNumber: String): Boolean {
+    fun makeCall(rawNumber: String, simId: Int = -1): Boolean {
         val cleanNumber = PhoneNumberHelper.normalizeNumber(rawNumber)
         if (cleanNumber.isBlank()) return false
 
@@ -54,6 +54,15 @@ class TelecomRepository(private val context: Context) {
             if (isDefault || hasCallPhone) {
                 val callIntent = Intent(Intent.ACTION_CALL, uri).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    if (simId > 0) {
+                        try {
+                            val accounts = telecomManager?.callCapablePhoneAccounts
+                            if (!accounts.isNullOrEmpty()) {
+                                val accountIndex = (simId - 1).coerceIn(0, accounts.size - 1)
+                                putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE, accounts[accountIndex])
+                            }
+                        } catch (_: Exception) {}
+                    }
                 }
                 context.startActivity(callIntent)
                 true

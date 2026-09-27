@@ -27,7 +27,9 @@ data class DialerSettings(
     val voicemailNumber: String = "",
     val blockUnknownNumbers: Boolean = false,
     val defaultStartTab: String = "home", // "home", "recents", "contacts", "dialpad", "more"
-    val callBackgroundUri: String? = null
+    val callBackgroundUri: String? = null,
+    val defaultRingtoneUri: String? = null,
+    val defaultRingtoneTitle: String? = "Default"
 ) {
     val darkTheme: Boolean
         get() = themeMode == ThemeMode.DARK

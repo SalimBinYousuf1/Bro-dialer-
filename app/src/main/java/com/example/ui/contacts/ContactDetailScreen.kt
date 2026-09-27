@@ -48,6 +48,7 @@ import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.PersonAdd
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.SimCard
@@ -77,8 +78,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -89,6 +94,9 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import com.example.data.model.CallRecord
 import com.example.data.model.CallType
+import com.example.data.model.ContactItem
+import com.example.data.model.ContactPhoneNumber
+import com.example.domain.usecase.PhoneNumberHelper
 import com.example.domain.usecase.SocialAppAvailabilityHelper
 import com.example.telephony.CallManager
 import com.example.ui.components.SalimAvatar
@@ -117,9 +125,11 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContactDetailScreen(
     contactId: Long,
+    initialPhoneNumber: String = "",
     viewModel: ContactsViewModel,
     onBack: () -> Unit,
     onEditContact: (Long) -> Unit,
+    onCreateContact: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val dark = isSystemInDarkTheme()
@@ -138,18 +148,47 @@ fun ContactDetailScreen(
     var showCallBackgroundDialog by remember { mutableStateOf(false) }
     var showSimDialog by remember { mutableStateOf(false) }
 
+    val rawContacts by viewModel.rawContacts.collectAsState()
+    val contact by viewModel.currentContact.collectAsState()
+
+    val resolvedContact = remember(contact, rawContacts, initialPhoneNumber, contactId) {
+        if (contactId > 0 && contact != null) {
+            contact
+        } else if (initialPhoneNumber.isNotBlank()) {
+            val found = PhoneNumberHelper.findContactForNumber(rawContacts, initialPhoneNumber)
+            found ?: ContactItem(
+                id = -1L,
+                lookupKey = "",
+                name = PhoneNumberHelper.formatForDisplay(initialPhoneNumber),
+                numbers = listOf(
+                    ContactPhoneNumber(
+                        number = initialPhoneNumber,
+                        normalizedNumber = initialPhoneNumber,
+                        type = "Mobile",
+                        isPrimary = true
+                    )
+                )
+            )
+        } else {
+            contact
+        }
+    }
+
+    val isUnsaved = resolvedContact != null && resolvedContact.id <= 0
+    val activeContactId = resolvedContact?.id?.takeIf { it > 0 } ?: contactId
+
     // Custom Contact Settings state observed from repository
-    val contactCustomization by viewModel.getContactCustomization(contactId).collectAsState(initial = null)
+    val contactCustomization by viewModel.getContactCustomization(activeContactId).collectAsState(initial = null)
 
     // Call history dropdown
     var callHistoryExpanded by remember { mutableStateOf(false) }
     var contactCallLogs by remember { mutableStateOf<List<CallRecord>>(emptyList()) }
 
     LaunchedEffect(contactId) {
-        viewModel.loadContactById(contactId)
+        if (contactId > 0) {
+            viewModel.loadContactById(contactId)
+        }
     }
-
-    val contact by viewModel.currentContact.collectAsState()
 
     // Native Ringtone Picker Launcher
     val ringtonePickerLauncher = rememberLauncherForActivityResult(
@@ -169,7 +208,7 @@ fun ContactDetailScreen(
                     "Custom Ringtone"
                 }
             } else "Silent"
-            viewModel.saveContactRingtone(contactId, uri?.toString(), title)
+            viewModel.saveContactRingtone(activeContactId, uri?.toString(), title)
             scope.launch { snackbarHostState.showSnackbar("Ringtone updated: $title") }
         }
     }
@@ -179,15 +218,16 @@ fun ContactDetailScreen(
         contract = ActivityResultContracts.PickVisualMedia()
     ) { uri ->
         if (uri != null) {
-            viewModel.saveContactCallBackground(contactId, uri)
+            viewModel.saveContactCallBackground(activeContactId, uri)
             scope.launch { snackbarHostState.showSnackbar("Call background photo saved") }
         }
     }
 
-    LaunchedEffect(contact) {
-        val c = contact
-        if (c != null && c.numbers.isNotEmpty()) {
-            contactCallLogs = viewModel.loadCallLogsForContact(c.numbers.map { it.number })
+    LaunchedEffect(resolvedContact, initialPhoneNumber) {
+        val nums = resolvedContact?.numbers?.map { it.number }
+            ?: if (initialPhoneNumber.isNotBlank()) listOf(initialPhoneNumber) else emptyList()
+        if (nums.isNotEmpty()) {
+            contactCallLogs = viewModel.loadCallLogsForContact(nums)
         }
     }
 
@@ -201,11 +241,19 @@ fun ContactDetailScreen(
                     SalimBackButton(onClick = onBack)
                 },
                 actions = {
-                    FrostButton(
-                        text = "Edit",
-                        onClick = { onEditContact(contactId) },
-                        testTag = "contact_edit_button"
-                    )
+                    if (isUnsaved) {
+                        FrostButton(
+                            text = "Add to Contacts",
+                            onClick = { onCreateContact(initialPhoneNumber) },
+                            testTag = "contact_create_button"
+                        )
+                    } else {
+                        FrostButton(
+                            text = "Edit",
+                            onClick = { onEditContact(activeContactId) },
+                            testTag = "contact_edit_button"
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -219,7 +267,7 @@ fun ContactDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            val currentContact = contact
+            val currentContact = resolvedContact
             if (currentContact == null) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -269,10 +317,11 @@ fun ContactDetailScreen(
                         ),
                         color = textPrimary
                     )
-                    if (!currentContact.organization.isNullOrBlank()) {
+                    val subtitleText = if (isUnsaved) "Unsaved Number" else currentContact.organization
+                    if (!subtitleText.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = currentContact.organization ?: "",
+                            text = subtitleText,
                             style = MaterialTheme.typography.bodyMedium,
                             color = textMuted
                         )
@@ -292,7 +341,7 @@ fun ContactDetailScreen(
                             label = "Call",
                             enabled = currentContact.primaryNumber.isNotBlank(),
                             onClick = {
-                                viewModel.makeCall(currentContact.primaryNumber)
+                                viewModel.makeCall(currentContact.primaryNumber, contactCustomization?.defaultSimId ?: -1)
                             }
                         )
                         ActionTile(
@@ -492,12 +541,20 @@ fun ContactDetailScreen(
                                 )
                             }
 
-                            AnimatedVisibility(visible = callHistoryExpanded) {
+                            if (callHistoryExpanded) {
+                                val historyScrollState = rememberScrollState()
+                                val nestedScrollConnection = remember {
+                                    object : NestedScrollConnection {
+                                        override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset = Offset.Zero
+                                        override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset = available
+                                    }
+                                }
                                 Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .heightIn(max = 240.dp)
-                                        .verticalScroll(rememberScrollState())
+                                        .height(200.dp)
+                                        .nestedScroll(nestedScrollConnection)
+                                        .verticalScroll(historyScrollState)
                                         .padding(horizontal = 16.dp, vertical = 8.dp)
                                 ) {
                                     Column {
@@ -575,93 +632,126 @@ fun ContactDetailScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Audio & Call Customization Card (Ringtone, Background, SIM)
-                    FrostCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                            val ringtoneTitle = contactCustomization?.ringtoneTitle ?: "Follow system"
-                            ContactPreferenceRow(
-                                icon = Icons.Default.MusicNote,
-                                title = "Ringtone",
-                                subtitle = ringtoneTitle,
-                                onClick = {
-                                    val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
-                                        putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone for ${currentContact.name}")
-                                        contactCustomization?.ringtoneUri?.let {
-                                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                    if (isUnsaved) {
+                        // Unsaved Contact Actions Card
+                        FrostCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                DetailActionRow(
+                                    icon = Icons.Default.PersonAdd,
+                                    label = "Create New Contact",
+                                    onClick = { onCreateContact(initialPhoneNumber) }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                DetailActionRow(
+                                    icon = Icons.Default.Message,
+                                    label = "Send Message",
+                                    onClick = { viewModel.sendSms(initialPhoneNumber) }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                DetailActionRow(
+                                    icon = Icons.Default.Block,
+                                    label = "Block this Caller",
+                                    onClick = { showBlockDialog = true }
+                                )
+                            }
+                        }
+                    } else {
+                        // Audio & Call Customization Card (Ringtone, Background, SIM)
+                        FrostCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                val ringtoneTitle = contactCustomization?.ringtoneTitle ?: "Follow system"
+                                ContactPreferenceRow(
+                                    icon = Icons.Default.MusicNote,
+                                    title = "Ringtone",
+                                    subtitle = ringtoneTitle,
+                                    onClick = {
+                                        val intent = Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_RINGTONE)
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_SILENT, true)
+                                            putExtra(RingtoneManager.EXTRA_RINGTONE_TITLE, "Select Ringtone for ${currentContact.name}")
+                                            contactCustomization?.ringtoneUri?.let {
+                                                putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, Uri.parse(it))
+                                            }
+                                        }
+                                        try {
+                                            ringtonePickerLauncher.launch(intent)
+                                        } catch (_: Exception) {
+                                            scope.launch { snackbarHostState.showSnackbar("Could not open system ringtone picker") }
                                         }
                                     }
-                                    try {
-                                        ringtonePickerLauncher.launch(intent)
-                                    } catch (_: Exception) {
-                                        scope.launch { snackbarHostState.showSnackbar("Could not open system ringtone picker") }
-                                    }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                val bgTitle = if (contactCustomization?.callBackgroundUri != null) "Custom Wallpaper" else "Default Frost Glass"
+                                ContactPreferenceRow(
+                                    icon = Icons.Default.Photo,
+                                    title = "Call background",
+                                    subtitle = bgTitle,
+                                    onClick = { showCallBackgroundDialog = true }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                val simTitle = when (val simId = contactCustomization?.defaultSimId ?: -1) {
+                                    -1 -> "Follow system"
+                                    1 -> "SIM 1"
+                                    2 -> "SIM 2"
+                                    else -> "SIM $simId"
                                 }
-                            )
-                            HorizontalDivider(
-                                thickness = 0.5.dp,
-                                color = textMuted.copy(alpha = 0.2f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            val bgTitle = if (contactCustomization?.callBackgroundUri != null) "Custom Wallpaper" else "Default Frost Glass"
-                            ContactPreferenceRow(
-                                icon = Icons.Default.Photo,
-                                title = "Call background",
-                                subtitle = bgTitle,
-                                onClick = { showCallBackgroundDialog = true }
-                            )
-                            HorizontalDivider(
-                                thickness = 0.5.dp,
-                                color = textMuted.copy(alpha = 0.2f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            val simTitle = when (val simId = contactCustomization?.defaultSimId ?: -1) {
-                                -1 -> "Follow system"
-                                1 -> "SIM 1"
-                                2 -> "SIM 2"
-                                else -> "SIM $simId"
+                                ContactPreferenceRow(
+                                    icon = Icons.Default.SimCard,
+                                    title = "Default calling SIM",
+                                    subtitle = simTitle,
+                                    onClick = { showSimDialog = true }
+                                )
                             }
-                            ContactPreferenceRow(
-                                icon = Icons.Default.SimCard,
-                                title = "Default calling SIM",
-                                subtitle = simTitle,
-                                onClick = { showSimDialog = true }
-                            )
                         }
-                    }
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                    // Actions Card (Favorite, Share, Block, Delete)
-                    FrostCard(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(vertical = 4.dp)) {
-                            DetailActionRow(
-                                icon = if (currentContact.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
-                                label = if (currentContact.isFavorite) "Remove from Favorites" else "Add to Favorites",
-                                onClick = { viewModel.toggleFavorite(currentContact) }
-                            )
-                            HorizontalDivider(
-                                thickness = 0.5.dp,
-                                color = textMuted.copy(alpha = 0.2f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            DetailActionRow(
-                                icon = Icons.Default.Block,
-                                label = "Block Contact",
-                                onClick = { showBlockDialog = true }
-                            )
-                            HorizontalDivider(
-                                thickness = 0.5.dp,
-                                color = textMuted.copy(alpha = 0.2f),
-                                modifier = Modifier.padding(horizontal = 16.dp)
-                            )
-                            DetailActionRow(
-                                icon = Icons.Default.Delete,
-                                label = "Delete Contact",
-                                onClick = { showDeleteDialog = true }
-                            )
+                        // Actions Card (Favorite, Share, Block, Delete)
+                        FrostCard(modifier = Modifier.fillMaxWidth()) {
+                            Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                                DetailActionRow(
+                                    icon = if (currentContact.isFavorite) Icons.Default.Star else Icons.Default.StarBorder,
+                                    label = if (currentContact.isFavorite) "Remove from Favorites" else "Add to Favorites",
+                                    onClick = { viewModel.toggleFavorite(currentContact) }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                DetailActionRow(
+                                    icon = Icons.Default.Block,
+                                    label = "Block Contact",
+                                    onClick = { showBlockDialog = true }
+                                )
+                                HorizontalDivider(
+                                    thickness = 0.5.dp,
+                                    color = textMuted.copy(alpha = 0.2f),
+                                    modifier = Modifier.padding(horizontal = 16.dp)
+                                )
+                                DetailActionRow(
+                                    icon = Icons.Default.Delete,
+                                    label = "Delete Contact",
+                                    onClick = { showDeleteDialog = true }
+                                )
+                            }
                         }
                     }
 
@@ -691,15 +781,22 @@ fun ContactDetailScreen(
                                     showCallBackgroundDialog = false
                                     when (opt) {
                                         "Choose Photo from Gallery" -> {
-                                            photoPickerLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                                            photoPickerLauncher.launch(
+                                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                            )
                                         }
                                         "Use Contact Avatar" -> {
-                                            contact?.photoUri?.let { uriStr ->
-                                                viewModel.saveContactCallBackground(contactId, Uri.parse(uriStr))
+                                            val photo = resolvedContact?.photoUri
+                                            if (!photo.isNullOrBlank()) {
+                                                viewModel.saveContactCallBackground(activeContactId, Uri.parse(photo))
+                                                scope.launch { snackbarHostState.showSnackbar("Avatar set as call background") }
+                                            } else {
+                                                scope.launch { snackbarHostState.showSnackbar("No avatar available for contact") }
                                             }
                                         }
                                         "Reset to Default Frost Glass" -> {
-                                            viewModel.saveContactCallBackground(contactId, null)
+                                            viewModel.saveContactCallBackground(activeContactId, null)
+                                            scope.launch { snackbarHostState.showSnackbar("Call background reset to default") }
                                         }
                                     }
                                 }
@@ -751,7 +848,7 @@ fun ContactDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clickable {
-                                viewModel.saveContactDefaultSim(contactId, -1)
+                                viewModel.saveContactDefaultSim(activeContactId, -1)
                                 showSimDialog = false
                             }
                             .padding(vertical = 12.dp),
@@ -782,7 +879,7 @@ fun ContactDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.saveContactDefaultSim(contactId, simId)
+                                        viewModel.saveContactDefaultSim(activeContactId, simId)
                                         showSimDialog = false
                                     }
                                     .padding(vertical = 12.dp),
@@ -813,7 +910,7 @@ fun ContactDetailScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable {
-                                        viewModel.saveContactDefaultSim(contactId, simId)
+                                        viewModel.saveContactDefaultSim(activeContactId, simId)
                                         showSimDialog = false
                                     }
                                     .padding(vertical = 12.dp),

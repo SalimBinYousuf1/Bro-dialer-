@@ -231,8 +231,8 @@ class ContactsViewModel(
         }
     }
 
-    fun makeCall(number: String) {
-        telecomRepository.makeCall(number)
+    fun makeCall(number: String, simId: Int = -1) {
+        telecomRepository.makeCall(number, simId)
     }
 
     fun sendSms(number: String) {

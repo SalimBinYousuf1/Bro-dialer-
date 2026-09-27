@@ -9,7 +9,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
+import androidx.compose.runtime.produceState
+import com.example.data.model.ContactCustomization
+import com.example.domain.usecase.PhoneNumberHelper
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -59,9 +61,24 @@ class CallActivity : ComponentActivity() {
                 val callInfo by CallManager.currentCallInfo.collectAsState()
                 val settings by SalimApplication.instance.preferencesManager.settingsFlow.collectAsState(initial = null)
 
+                val contactCustomization by produceState<ContactCustomization?>(initialValue = null, callInfo?.number) {
+                    val num = callInfo?.number
+                    if (!num.isNullOrBlank()) {
+                        val contact = PhoneNumberHelper.findContactForNumber(
+                            SalimApplication.instance.contactsRepository.loadContacts(),
+                            num
+                        )
+                        if (contact != null) {
+                            value = SalimApplication.instance.contactCustomizationRepository.getCustomizationDirect(contact.id)
+                        }
+                    }
+                }
+
+                val effectiveBackgroundUri = contactCustomization?.callBackgroundUri ?: settings?.callBackgroundUri
+
                 CallScreen(
                     callInfo = callInfo,
-                    backgroundUri = settings?.callBackgroundUri,
+                    backgroundUri = effectiveBackgroundUri,
                     onAnswer = { CallManager.answer() },
                     onDecline = {
                         CallManager.disconnect()

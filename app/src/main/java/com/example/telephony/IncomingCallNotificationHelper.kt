@@ -6,17 +6,25 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.media.AudioAttributes
+import android.media.Ringtone
 import android.media.RingtoneManager
+import android.net.Uri
 import android.os.Build
 import android.telecom.Call
 import androidx.core.app.NotificationCompat
+import com.example.SalimApplication
 import com.example.domain.usecase.PhoneNumberHelper
 import com.example.ui.call.CallActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.launch
 
 object IncomingCallNotificationHelper {
 
     const val CHANNEL_ID = "incoming_calls"
     const val NOTIFICATION_ID = 2001
+    private var activeRingtone: Ringtone? = null
 
     fun createNotificationChannel(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -53,6 +61,28 @@ object IncomingCallNotificationHelper {
             PhoneNumberHelper.formatForDisplay(rawNumber)
         } else {
             "Incoming Phone Call"
+        }
+
+        // Start ringing with custom ringtone if available
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                var chosenUriStr: String? = null
+                if (rawNumber.isNotBlank()) {
+                    val contact = PhoneNumberHelper.findContactForNumber(
+                        SalimApplication.instance.contactsRepository.loadContacts(),
+                        rawNumber
+                    )
+                    if (contact != null) {
+                        val custom = SalimApplication.instance.contactCustomizationRepository.getCustomizationDirect(contact.id)
+                        chosenUriStr = custom?.ringtoneUri
+                    }
+                }
+                if (chosenUriStr.isNullOrBlank()) {
+                    val settings = SalimApplication.instance.preferencesManager.settingsFlow.firstOrNull()
+                    chosenUriStr = settings?.defaultRingtoneUri
+                }
+                playRingtone(context, chosenUriStr)
+            } catch (_: Exception) {}
         }
 
         // Full screen & content intent to CallActivity
@@ -110,7 +140,28 @@ object IncomingCallNotificationHelper {
         notificationManager.notify(NOTIFICATION_ID, notification)
     }
 
+    fun playRingtone(context: Context, customUriStr: String?) {
+        stopRingtone()
+        try {
+            val uri = if (!customUriStr.isNullOrBlank()) Uri.parse(customUriStr) else RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE)
+            activeRingtone = RingtoneManager.getRingtone(context.applicationContext, uri)?.apply {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    isLooping = true
+                }
+                play()
+            }
+        } catch (_: Exception) {}
+    }
+
+    fun stopRingtone() {
+        try {
+            activeRingtone?.stop()
+            activeRingtone = null
+        } catch (_: Exception) {}
+    }
+
     fun dismissNotification(context: Context) {
+        stopRingtone()
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.cancel(NOTIFICATION_ID)
     }
