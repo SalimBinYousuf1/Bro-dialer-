@@ -109,6 +109,41 @@ class DialpadViewModel(
         }
     }
 
+    fun onCallButtonPressed(): Boolean {
+        val current = _enteredNumber.value.trim()
+        return if (current.isBlank()) {
+            viewModelScope.launch {
+                val lastNum = SalimApplication.instance.callLogRepository.getLastOutgoingNumber()
+                if (!lastNum.isNullOrBlank()) {
+                    setNumber(lastNum)
+                    provideHaptic()
+                }
+            }
+            false
+        } else {
+            makeCall(current)
+        }
+    }
+
+    fun callVoicemail(): Boolean {
+        provideHaptic()
+        val tm = SalimApplication.instance.getSystemService(Context.TELEPHONY_SERVICE) as? android.telephony.TelephonyManager
+        val vmNumber = try {
+            tm?.voiceMailNumber?.takeIf { it.isNotBlank() } ?: "*86"
+        } catch (_: Exception) {
+            "*86"
+        }
+        return makeCall(vmNumber)
+    }
+
+    fun pasteNumber(text: String) {
+        val filtered = text.filter { it.isDigit() || it == '+' || it == '*' || it == '#' }
+        if (filtered.isNotBlank()) {
+            setNumber(filtered)
+            provideHaptic()
+        }
+    }
+
     fun makeCall(number: String = _enteredNumber.value): Boolean {
         if (number.isBlank()) return false
         provideHaptic()

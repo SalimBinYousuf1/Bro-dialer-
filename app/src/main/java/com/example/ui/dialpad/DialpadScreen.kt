@@ -28,7 +28,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.automirrored.filled.Backspace
 import androidx.compose.material.icons.filled.Call
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.Voicemail
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -44,8 +46,10 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -61,6 +65,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import com.example.ui.theme.liquidGlassInteractive
 import kotlinx.coroutines.delay
@@ -78,7 +83,8 @@ fun DialpadScreen(
     onViewContact: (Long) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
+    val clipboardManager = LocalClipboardManager.current
     val enteredNumber by viewModel.enteredNumber.collectAsState()
     val matchedContacts by viewModel.matchedContacts.collectAsState()
     val matchedSavedContact by viewModel.matchedSavedContact.collectAsState()
@@ -278,8 +284,8 @@ fun DialpadScreen(
                                     if (def.digit == '0') {
                                         viewModel.appendDigit('+')
                                     } else if (def.digit == '1') {
-                                        // Voicemail shortcut
-                                        viewModel.makeCall()
+                                        // Standard Voicemail speed-dial shortcut
+                                        viewModel.callVoicemail()
                                     }
                                 }
                             )
@@ -287,7 +293,7 @@ fun DialpadScreen(
                     }
                 }
 
-                // Action Row: Clear spacer, Pure Neutral Glass Call button, Backspace
+                // Action Row: Voicemail/Copy button, Pure Neutral Glass Call button, Backspace
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -295,8 +301,29 @@ fun DialpadScreen(
                     horizontalArrangement = Arrangement.SpaceEvenly,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Left empty slot for symmetry
-                    Box(modifier = Modifier.size(74.dp))
+                    // Left slot: Voicemail when empty, Copy when number is entered
+                    Box(
+                        modifier = Modifier.size(74.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (enteredNumber.isEmpty()) {
+                            FrostIconButton(
+                                icon = Icons.Default.Voicemail,
+                                contentDescription = "Voicemail",
+                                onClick = { viewModel.callVoicemail() },
+                                testTag = "dial_voicemail_button"
+                            )
+                        } else {
+                            FrostIconButton(
+                                icon = Icons.Default.ContentCopy,
+                                contentDescription = "Copy number",
+                                onClick = {
+                                    clipboardManager.setText(AnnotatedString(enteredNumber))
+                                },
+                                testTag = "dial_copy_button"
+                            )
+                        }
+                    }
 
                     // High-contrast Apple & Google style Frosted Emerald Call Button
                     Box(
@@ -307,7 +334,7 @@ fun DialpadScreen(
                                 elevation = 4.dp,
                                 isElevated = true,
                                 testTag = "dial_call_button",
-                                onClick = { viewModel.makeCall() }
+                                onClick = { viewModel.onCallButtonPressed() }
                             )
                             .background(CallEmerald, CircleShape),
                         contentAlignment = Alignment.Center
@@ -352,7 +379,7 @@ fun DialpadGlassKey(
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val haptic = LocalHapticFeedback.current

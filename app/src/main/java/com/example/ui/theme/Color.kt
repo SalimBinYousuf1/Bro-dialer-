@@ -35,16 +35,16 @@ val GlassBorderDark = Color(0x38FFFFFF)             // Subtle specular rim
 val GlassHighlightDark = Color(0x4DFFFFFF)          // Specular upper reflection
 val GlassRimDark = Color(0x26FFFFFF)
 
-val GlassTextPrimaryDark = Color(0xFFF8FAFC)
-val GlassTextSecondaryDark = Color(0xFFCBD5E1)
-val GlassTextTertiaryDark = Color(0xFF94A3B8)
-val GlassDividerDark = Color(0x24FFFFFF)
+val GlassTextPrimaryDark = Color(0xFFFFFFFF)
+val GlassTextSecondaryDark = Color(0xCCFFFFFF)
+val GlassTextTertiaryDark = Color(0x99FFFFFF)
+val GlassDividerDark = Color(0x2EFFFFFF)
 
 // High-contrast Call Semantics (Apple & Google Standard Call Colors)
-val CallEmerald = Color(0xFF34C759)
+val CallEmerald = Color(0xFF30D158)
 val CallCrimson = Color(0xFFFF3B30)
-val CallAmber = Color(0xFFFF9500)
-val CallBlue = Color(0xFF007AFF)
+val CallAmber = Color(0xFFFF9F0A)
+val CallBlue = Color(0xFF0A84FF)
 
 // Legacy alias mappings for strict backward-compatibility while enforcing neutral glass
 val SalimWhite = GlassPureWhite
@@ -66,11 +66,11 @@ val SalimTextSecondaryDark = GlassTextSecondaryDark
 val SalimTextTertiaryDark = GlassTextTertiaryDark
 val SalimDividerDark = GlassDividerDark
 
-// STRICT OVERRIDE: Neutral glass tokens replacing all colored accents
-val SalimBlue = Color(0xFF1C1C1E)         // Neutral graphite
-val SalimGreen = Color(0xFF262628)        // Neutral dark glass
-val SalimRed = Color(0xFF3A3A3C)          // Neutral deep slate
-val SalimYellow = Color(0xFF505054)       // Neutral medium slate
+// High-contrast Apple system accents (Accessible on both dark & light backgrounds)
+val SalimBlue = Color(0xFF0A84FF)         // Apple system blue
+val SalimGreen = Color(0xFF30D158)        // Apple emerald green
+val SalimRed = Color(0xFFFF453A)          // Apple crimson red
+val SalimYellow = Color(0xFFFFD60A)       // Apple yellow
 val SalimGray = Color(0xFF8E8E93)
 val SalimKeypadBackground = Color(0xCCFFFFFF)
 val SalimKeypadBackgroundDark = Color(0x2EFFFFFF)

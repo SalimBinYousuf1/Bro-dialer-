@@ -163,4 +163,29 @@ class CallLogRepository(private val context: Context) {
             false
         }
     }
+
+    suspend fun getLastOutgoingNumber(): String? = withContext(Dispatchers.IO) {
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALL_LOG) != PackageManager.PERMISSION_GRANTED) {
+            return@withContext null
+        }
+        try {
+            val projection = arrayOf(CallLog.Calls.NUMBER)
+            val selection = "${CallLog.Calls.TYPE} = ?"
+            val selectionArgs = arrayOf(CallLog.Calls.OUTGOING_TYPE.toString())
+            val sortOrder = "${CallLog.Calls.DATE} DESC LIMIT 1"
+            context.contentResolver.query(
+                CallLog.Calls.CONTENT_URI,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder
+            )?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    cursor.getString(0)?.takeIf { it.isNotBlank() }
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
 }

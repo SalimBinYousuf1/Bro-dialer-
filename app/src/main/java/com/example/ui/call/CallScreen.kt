@@ -133,6 +133,7 @@ fun CallScreen(
     var copyNotice by remember { mutableStateOf<String?>(null) }
     var showQuickReplySheet by remember { mutableStateOf(false) }
     var isEditingQuickMessages by remember { mutableStateOf(false) }
+    var customReplyText by remember { mutableStateOf("") }
     var editableMessages by remember(quickMessages) { mutableStateOf(quickMessages.toMutableList()) }
 
     val state = callInfo?.state ?: TelephonyCallState.IDLE
@@ -197,13 +198,34 @@ fun CallScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier.padding(top = 12.dp)
             ) {
-                SalimAvatar(
-                    name = callInfo?.displayName ?: "Unknown",
-                    size = 84.dp
-                )
+                // Caller Avatar (Photo or Initial Avatar)
+                if (!callInfo?.photoUri.isNullOrBlank()) {
+                    AsyncImage(
+                        model = callInfo.photoUri,
+                        contentDescription = "Caller Photo",
+                        modifier = Modifier
+                            .size(88.dp)
+                            .clip(CircleShape)
+                            .border(2.dp, Color.White.copy(alpha = 0.35f), CircleShape),
+                        contentScale = ContentScale.Crop
+                    )
+                } else {
+                    SalimAvatar(
+                        name = callInfo?.displayName ?: "Unknown",
+                        size = 88.dp
+                    )
+                }
                 Spacer(modifier = Modifier.height(10.dp))
+
+                // Caller Name / Headline
                 Text(
-                    text = callInfo?.displayName ?: "Unknown",
+                    text = if (callInfo?.isSavedContact == true) {
+                        callInfo.displayName.ifBlank { "Unknown Caller" }
+                    } else if (!callInfo?.number.isNullOrBlank()) {
+                        PhoneNumberHelper.formatForDisplay(callInfo.number)
+                    } else {
+                        callInfo?.displayName ?: "Unknown Caller"
+                    },
                     style = MaterialTheme.typography.headlineMedium.copy(
                         fontWeight = FontWeight.Bold,
                         fontSize = 26.sp
@@ -212,13 +234,31 @@ fun CallScreen(
                     textAlign = TextAlign.Center
                 )
                 Spacer(modifier = Modifier.height(3.dp))
-                Text(
-                    text = if (!callInfo?.number.isNullOrBlank()) {
-                        PhoneNumberHelper.formatForDisplay(callInfo?.number ?: "")
-                    } else "Unknown Number",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = Color.White.copy(alpha = 0.85f)
-                )
+
+                // Subtitle / Contact distinction
+                if (callInfo?.isSavedContact == true) {
+                    if (!callInfo.number.isNullOrBlank()) {
+                        Text(
+                            text = PhoneNumberHelper.formatForDisplay(callInfo.number),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.85f)
+                        )
+                    }
+                } else {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color.White.copy(alpha = 0.14f),
+                        modifier = Modifier.padding(vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = "Unsaved Caller",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White.copy(alpha = 0.9f),
+                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                        )
+                    }
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = statusLabel,
@@ -503,7 +543,7 @@ fun CallScreen(
                                         val number = callInfo?.number ?: ""
                                         if (number.isNotBlank()) {
                                             try {
-                                                com.example.SalimApplication.instance.telecomRepository.openSms(number)
+                                                com.example.SalimApplication.instance.telecomRepository.sendDirectSms(number, msg)
                                             } catch (_: Exception) {}
                                         }
                                         onDecline()
@@ -526,6 +566,58 @@ fun CallScreen(
                                         color = Color.White
                                     )
                                 }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(14.dp))
+                        Text(
+                            text = "Or write custom reply:",
+                            style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
+                            color = Color.White.copy(alpha = 0.7f)
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            OutlinedTextField(
+                                value = customReplyText,
+                                onValueChange = { customReplyText = it },
+                                placeholder = {
+                                    Text(
+                                        "Write message...",
+                                        color = Color.White.copy(alpha = 0.5f),
+                                        fontSize = 14.sp
+                                    )
+                                },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedTextColor = Color.White,
+                                    unfocusedTextColor = Color.White,
+                                    focusedBorderColor = SalimBlue,
+                                    unfocusedBorderColor = Color.White.copy(alpha = 0.3f),
+                                    cursorColor = SalimBlue
+                                )
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Button(
+                                onClick = {
+                                    if (customReplyText.isNotBlank()) {
+                                        val number = callInfo?.number ?: ""
+                                        if (number.isNotBlank()) {
+                                            try {
+                                                com.example.SalimApplication.instance.telecomRepository.sendDirectSms(number, customReplyText)
+                                            } catch (_: Exception) {}
+                                        }
+                                        showQuickReplySheet = false
+                                        onDecline()
+                                    }
+                                },
+                                enabled = customReplyText.isNotBlank(),
+                                colors = ButtonDefaults.buttonColors(containerColor = SalimBlue)
+                            ) {
+                                Text("Send", color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

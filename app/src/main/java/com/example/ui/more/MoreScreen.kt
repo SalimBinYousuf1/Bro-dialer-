@@ -46,6 +46,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import com.example.util.PermissionHelper
 import com.example.util.RoleHelper
@@ -56,7 +57,7 @@ fun MoreScreen(
     onRequestDefaultDialer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val context = LocalContext.current
     val isDefault = RoleHelper.isDefaultDialer(context)
     val hasCorePerms = PermissionHelper.hasContactsPermission(context) && PermissionHelper.hasCallLogPermission(context)

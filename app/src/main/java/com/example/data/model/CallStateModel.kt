@@ -15,6 +15,7 @@ data class ActiveCallInfo(
     val number: String = "",
     val displayName: String = "",
     val photoUri: String? = null,
+    val isSavedContact: Boolean = false,
     val state: TelephonyCallState = TelephonyCallState.IDLE,
     val connectTimeMillis: Long = 0L,
     val isMuted: Boolean = false,

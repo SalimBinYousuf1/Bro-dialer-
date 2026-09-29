@@ -13,11 +13,14 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 import com.example.data.model.ThemeMode
+
+val LocalDarkTheme = staticCompositionLocalOf { false }
 
 object NoRippleIndication : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatableNode {
@@ -75,7 +78,7 @@ fun SalimTheme(
         ThemeMode.SYSTEM -> darkTheme
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
-        ThemeMode.SALIM -> false
+        ThemeMode.SALIM -> darkTheme
     }
 
     val colorScheme = if (effectiveDark) DarkColorScheme else LightColorScheme
@@ -99,6 +102,7 @@ fun SalimTheme(
         typography = Typography
     ) {
         CompositionLocalProvider(
+            LocalDarkTheme provides effectiveDark,
             LocalIndication provides NoRippleIndication,
             LocalRippleConfiguration provides null
         ) {

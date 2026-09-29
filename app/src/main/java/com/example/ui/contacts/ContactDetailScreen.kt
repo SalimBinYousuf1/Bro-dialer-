@@ -118,6 +118,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -135,7 +136,7 @@ fun ContactDetailScreen(
     onCreateContact: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val context = LocalContext.current
@@ -544,73 +545,84 @@ fun ContactDetailScreen(
                             }
 
                             AnimatedVisibility(visible = callHistoryExpanded) {
-                                Column(
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .padding(horizontal = 16.dp, vertical = 8.dp)
-                                ) {
-                                    if (contactCallLogs.isEmpty()) {
-                                        Text(
-                                            text = "No prior call records found with this contact.",
-                                            style = MaterialTheme.typography.bodySmall,
-                                            color = textMuted,
-                                            modifier = Modifier.padding(vertical = 8.dp)
-                                        )
-                                    } else {
-                                        contactCallLogs.forEachIndexed { idx, record ->
-                                            if (idx > 0) {
-                                                HorizontalDivider(
-                                                    thickness = 0.5.dp,
-                                                    color = textMuted.copy(alpha = 0.2f),
-                                                    modifier = Modifier.padding(vertical = 6.dp)
-                                                )
+                                        .then(
+                                            if (contactCallLogs.size > 3) {
+                                                Modifier
+                                                    .heightIn(max = 240.dp)
+                                                    .verticalScroll(rememberScrollState())
+                                            } else {
+                                                Modifier
                                             }
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                                    val callIcon = when (record.type) {
-                                                        CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed
-                                                        CallType.OUTGOING -> Icons.Default.CallMade
-                                                        CallType.INCOMING -> Icons.Default.CallReceived
-                                                        CallType.BLOCKED -> Icons.Default.Block
-                                                        CallType.VOICEMAIL -> Icons.Default.Call
-                                                    }
-                                                    val isMissed = record.type == CallType.MISSED || record.type == CallType.REJECTED
-                                                    val callTint = if (isMissed) BrandColors.AppleRed else textPrimary
-                                                    Icon(imageVector = callIcon, contentDescription = null, tint = callTint, modifier = Modifier.size(16.dp))
-                                                    Spacer(modifier = Modifier.width(8.dp))
-                                                    Column {
-                                                        Text(
-                                                            text = when (record.type) {
-                                                                CallType.MISSED -> "Missed Call"
-                                                                CallType.OUTGOING -> "Outgoing"
-                                                                CallType.INCOMING -> "Incoming"
-                                                                CallType.REJECTED -> "Declined"
-                                                                CallType.BLOCKED -> "Blocked"
-                                                                CallType.VOICEMAIL -> "Voicemail"
-                                                            },
-                                                            style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
-                                                            color = if (isMissed) BrandColors.AppleRed else textPrimary
-                                                        )
-                                                        val timeStr = remember(record.date) {
-                                                            SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(record.date))
+                                        )
+                                ) {
+                                    Column(modifier = Modifier.fillMaxWidth()) {
+                                        if (contactCallLogs.isEmpty()) {
+                                            Text(
+                                                text = "No prior call records found with this contact.",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = textMuted,
+                                                modifier = Modifier.padding(vertical = 8.dp)
+                                            )
+                                        } else {
+                                            contactCallLogs.forEachIndexed { idx, record ->
+                                                if (idx > 0) {
+                                                    HorizontalDivider(
+                                                        thickness = 0.5.dp,
+                                                        color = textMuted.copy(alpha = 0.2f),
+                                                        modifier = Modifier.padding(vertical = 6.dp)
+                                                    )
+                                                }
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                                    verticalAlignment = Alignment.CenterVertically
+                                                ) {
+                                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                                        val callIcon = when (record.type) {
+                                                            CallType.MISSED, CallType.REJECTED -> Icons.Default.CallMissed
+                                                            CallType.OUTGOING -> Icons.Default.CallMade
+                                                            CallType.INCOMING -> Icons.Default.CallReceived
+                                                            CallType.BLOCKED -> Icons.Default.Block
+                                                            CallType.VOICEMAIL -> Icons.Default.Call
                                                         }
+                                                        val isMissed = record.type == CallType.MISSED || record.type == CallType.REJECTED
+                                                        val callTint = if (isMissed) BrandColors.AppleRed else textPrimary
+                                                        Icon(imageVector = callIcon, contentDescription = null, tint = callTint, modifier = Modifier.size(16.dp))
+                                                        Spacer(modifier = Modifier.width(8.dp))
+                                                        Column {
+                                                            Text(
+                                                                text = when (record.type) {
+                                                                    CallType.MISSED -> "Missed Call"
+                                                                    CallType.OUTGOING -> "Outgoing"
+                                                                    CallType.INCOMING -> "Incoming"
+                                                                    CallType.REJECTED -> "Declined"
+                                                                    CallType.BLOCKED -> "Blocked"
+                                                                    CallType.VOICEMAIL -> "Voicemail"
+                                                                },
+                                                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                                                                color = if (isMissed) BrandColors.AppleRed else textPrimary
+                                                            )
+                                                            val timeStr = remember(record.date) {
+                                                                SimpleDateFormat("MMM d, h:mm a", Locale.getDefault()).format(Date(record.date))
+                                                            }
+                                                            Text(
+                                                                text = timeStr,
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                                color = textMuted
+                                                            )
+                                                        }
+                                                    }
+                                                    if (record.durationSeconds > 0) {
                                                         Text(
-                                                            text = timeStr,
+                                                            text = record.formattedDuration,
                                                             style = MaterialTheme.typography.bodySmall,
                                                             color = textMuted
                                                         )
                                                     }
-                                                }
-                                                if (record.durationSeconds > 0) {
-                                                    Text(
-                                                        text = record.formattedDuration,
-                                                        style = MaterialTheme.typography.bodySmall,
-                                                        color = textMuted
-                                                    )
                                                 }
                                             }
                                         }

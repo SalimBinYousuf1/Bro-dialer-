@@ -80,7 +80,7 @@ fun Modifier.liquidGlass(
     isElevated: Boolean = false,
     alphaMultiplier: Float = 1f
 ): Modifier {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
 
     // Multi-layer frosted glass luminance gradients
     val baseTop = if (dark) {
@@ -190,7 +190,7 @@ fun FrostButton(
     isProminent: Boolean = false,
     testTag: String? = null
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val shape = RoundedCornerShape(14.dp)
     val contentColor = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
 
@@ -250,7 +250,7 @@ fun FrostIconButton(
     tint: Color? = null,
     testTag: String? = null
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val defaultTint = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val finalTint = tint ?: defaultTint
 
@@ -289,7 +289,7 @@ fun FrostIconButton(
     tint: Color? = null,
     testTag: String? = null
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val defaultTint = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val finalTint = tint ?: defaultTint
 
@@ -368,7 +368,7 @@ fun FrostSwitch(
     modifier: Modifier = Modifier,
     enabled: Boolean = true
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val haptic = LocalHapticFeedback.current
 
     val trackWidth = 52.dp
@@ -485,7 +485,7 @@ fun FrostSegmentedTabs(
     onTabSelected: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val trackShape = RoundedCornerShape(16.dp)
     val pillShape = RoundedCornerShape(12.dp)
 
@@ -551,7 +551,7 @@ fun FrostSearchBar(
     placeholder: String = "Search",
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val shape = RoundedCornerShape(14.dp)

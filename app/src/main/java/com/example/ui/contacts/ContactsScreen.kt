@@ -80,6 +80,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import com.example.ui.theme.liquidGlassInteractive
 import kotlinx.coroutines.launch
@@ -92,7 +93,7 @@ fun ContactsScreen(
     onAddContactClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -157,7 +158,7 @@ fun ContactsScreen(
                     ) {
                         if (isSelectionMode) {
                             // Select All / Deselect All Icon Button
-                            val allSelected = contacts.isNotEmpty() && selectedIds.size >= contacts.size
+                            val allSelected = contacts.isNotEmpty() && contacts.all { selectedIds.contains(it.id) }
                             FrostIconButton(
                                 icon = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
                                 contentDescription = if (allSelected) "Deselect All" else "Select All",
@@ -466,7 +467,7 @@ fun ContactGlassRow(
     onLongClick: () -> Unit = {},
     onCallClick: () -> Unit
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
     val shape = RoundedCornerShape(16.dp)

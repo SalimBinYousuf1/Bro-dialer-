@@ -39,10 +39,32 @@ class TelecomRepository(private val context: Context) {
         val cleanNumber = PhoneNumberHelper.normalizeNumber(rawNumber)
         if (cleanNumber.isBlank()) return false
 
-        // Launch Salim CallActivity first
+        val uri = Uri.fromParts("tel", cleanNumber, null)
+
+        // Android Telecom emergency call handling: route directly to system
+        if (PhoneNumberHelper.isEmergencyNumber(context, cleanNumber)) {
+            val emergencyIntent = Intent(Intent.ACTION_CALL, uri).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            return try {
+                context.startActivity(emergencyIntent)
+                true
+            } catch (_: Exception) {
+                try {
+                    val dialFallback = Intent(Intent.ACTION_DIAL, uri).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(dialFallback)
+                    true
+                } catch (_: Exception) {
+                    false
+                }
+            }
+        }
+
+        // Launch Salim CallActivity for regular calls
         com.example.telephony.CallManager.initiateOutgoingCall(context, cleanNumber)
 
-        val uri = Uri.fromParts("tel", cleanNumber, null)
         val hasCallPhone = ContextCompat.checkSelfPermission(
             context,
             android.Manifest.permission.CALL_PHONE
@@ -83,6 +105,28 @@ class TelecomRepository(private val context: Context) {
             } catch (_: Exception) {
                 false
             }
+        }
+    }
+
+    fun sendDirectSms(rawNumber: String, message: String): Boolean {
+        val cleanNumber = PhoneNumberHelper.normalizeNumber(rawNumber)
+        if (cleanNumber.isBlank() || message.isBlank()) return false
+        return try {
+            val smsManager: android.telephony.SmsManager = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                context.getSystemService(android.telephony.SmsManager::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                android.telephony.SmsManager.getDefault()
+            }
+            val parts = smsManager.divideMessage(message)
+            if (parts.size > 1) {
+                smsManager.sendMultipartTextMessage(cleanNumber, null, parts, null, null)
+            } else {
+                smsManager.sendTextMessage(cleanNumber, null, message, null, null)
+            }
+            true
+        } catch (_: Exception) {
+            false
         }
     }
 

@@ -51,6 +51,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
+import com.example.ui.theme.LocalDarkTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -99,7 +100,7 @@ fun RecentsScreen(
     onEditBeforeCall: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val calls by viewModel.filteredCalls.collectAsState()
     val filter by viewModel.filter.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
@@ -175,7 +176,7 @@ fun RecentsScreen(
                     ) {
                         if (isSelectionMode) {
                             // Select All / Deselect All Icon Button
-                            val allSelected = calls.isNotEmpty() && selectedIds.size == calls.size
+                            val allSelected = calls.isNotEmpty() && calls.all { selectedIds.contains(it.id) }
                             FrostIconButton(
                                 icon = if (allSelected) Icons.Default.Deselect else Icons.Default.SelectAll,
                                 contentDescription = if (allSelected) "Deselect All" else "Select All",
@@ -511,7 +512,7 @@ fun RecentsGlassRowItem(
     onPillLongClick: () -> Unit,
     onInfoClick: () -> Unit
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 

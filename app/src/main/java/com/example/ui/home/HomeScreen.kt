@@ -60,6 +60,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import com.example.ui.theme.liquidGlassInteractive
 import java.text.SimpleDateFormat
@@ -73,7 +74,7 @@ fun HomeScreen(
     onRequestDefaultDialer: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val state by viewModel.state.collectAsState()
 
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight

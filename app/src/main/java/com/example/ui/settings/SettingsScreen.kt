@@ -76,6 +76,7 @@ import com.example.ui.theme.GlassTextPrimaryDark
 import com.example.ui.theme.GlassTextPrimaryLight
 import com.example.ui.theme.GlassTextSecondaryDark
 import com.example.ui.theme.GlassTextSecondaryLight
+import com.example.ui.theme.LocalDarkTheme
 import com.example.ui.theme.liquidGlass
 import com.example.util.PermissionHelper
 import com.example.util.RoleHelper
@@ -88,7 +89,7 @@ fun SettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val context = LocalContext.current
     val settings by viewModel.settings.collectAsState()
     val isDefaultDialer = RoleHelper.isDefaultDialer(context)
@@ -532,7 +533,7 @@ private fun SettingsClickableRow(
     badge: String? = null,
     onClick: () -> Unit
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 
@@ -601,7 +602,7 @@ private fun SettingsSwitchRow(
     onCheckedChange: (Boolean) -> Unit,
     testTag: String
 ) {
-    val dark = isSystemInDarkTheme()
+    val dark = LocalDarkTheme.current
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
 

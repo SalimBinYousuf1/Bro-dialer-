@@ -25,9 +25,20 @@ import kotlinx.coroutines.launch
 
 class CallActivity : ComponentActivity() {
 
+    private var proximityWakeLock: android.os.PowerManager.WakeLock? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // Initialize Proximity WakeLock to turn screen off when near the ear
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        if (powerManager != null && powerManager.isWakeLockLevelSupported(android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK)) {
+            proximityWakeLock = powerManager.newWakeLock(
+                android.os.PowerManager.PROXIMITY_SCREEN_OFF_WAKE_LOCK,
+                "salimdialer:proximity_wake_lock"
+            )
+        }
 
         // Turn screen on and show over lock screen for incoming/active calls
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -50,7 +61,26 @@ class CallActivity : ComponentActivity() {
             CallManager.currentCallInfo.collectLatest { callInfo ->
                 if (callInfo != null) {
                     hasHadActiveCall = true
+                    // Standard dialer proximity sensor management: screen turns off when held to ear
+                    if (callInfo.state == com.example.data.model.TelephonyCallState.ACTIVE && !callInfo.isSpeakerOn && !callInfo.isBluetoothOn) {
+                        if (proximityWakeLock?.isHeld == false) {
+                            try {
+                                proximityWakeLock?.acquire(30 * 60 * 1000L)
+                            } catch (_: Exception) {}
+                        }
+                    } else {
+                        if (proximityWakeLock?.isHeld == true) {
+                            try {
+                                proximityWakeLock?.release()
+                            } catch (_: Exception) {}
+                        }
+                    }
                 } else if (hasHadActiveCall) {
+                    if (proximityWakeLock?.isHeld == true) {
+                        try {
+                            proximityWakeLock?.release()
+                        } catch (_: Exception) {}
+                    }
                     finish()
                 }
             }
@@ -92,8 +122,11 @@ class CallActivity : ComponentActivity() {
                     },
                     onDecline = {
                         IncomingCallNotificationHelper.stopRingtone()
+                        val wasRinging = callInfo?.state == com.example.data.model.TelephonyCallState.RINGING
                         CallManager.disconnect()
-                        finish()
+                        if (wasRinging) {
+                            finish()
+                        }
                     },
                     onMuteToggle = { CallManager.setMuted(!it) },
                     onSpeakerToggle = { CallManager.toggleSpeaker() },
@@ -132,6 +165,12 @@ class CallActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (proximityWakeLock?.isHeld == true) {
+            try {
+                proximityWakeLock?.release()
+            } catch (_: Exception) {}
+        }
+        proximityWakeLock = null
         IncomingCallNotificationHelper.stopRingtone()
         super.onDestroy()
     }

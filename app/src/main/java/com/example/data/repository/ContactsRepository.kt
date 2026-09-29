@@ -380,6 +380,53 @@ class ContactsRepository(private val context: Context) {
         }
     }
 
+    fun findContactByNumberDirect(rawNumber: String): ContactItem? {
+        val clean = rawNumber.trim()
+        if (clean.isBlank()) return null
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            return null
+        }
+        return try {
+            val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(clean))
+            val projection = arrayOf(
+                ContactsContract.PhoneLookup._ID,
+                ContactsContract.PhoneLookup.LOOKUP_KEY,
+                ContactsContract.PhoneLookup.DISPLAY_NAME,
+                ContactsContract.PhoneLookup.PHOTO_URI,
+                ContactsContract.PhoneLookup.NUMBER,
+                ContactsContract.PhoneLookup.STARRED
+            )
+            context.contentResolver.query(uri, projection, null, null, null)?.use { cursor ->
+                if (cursor.moveToFirst()) {
+                    val idIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup._ID)
+                    val lookupIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.LOOKUP_KEY)
+                    val nameIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.DISPLAY_NAME)
+                    val photoIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.PHOTO_URI)
+                    val numberIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.NUMBER)
+                    val starredIdx = cursor.getColumnIndex(ContactsContract.PhoneLookup.STARRED)
+
+                    val id = if (idIdx != -1) cursor.getLong(idIdx) else 0L
+                    val lookupKey = if (lookupIdx != -1) cursor.getString(lookupIdx) ?: "" else ""
+                    val name = if (nameIdx != -1) cursor.getString(nameIdx) ?: "" else ""
+                    val photoUri = if (photoIdx != -1) cursor.getString(photoIdx) else null
+                    val number = if (numberIdx != -1) cursor.getString(numberIdx) ?: clean else clean
+                    val starred = if (starredIdx != -1) cursor.getInt(starredIdx) == 1 else false
+
+                    ContactItem(
+                        id = id,
+                        lookupKey = lookupKey,
+                        name = name,
+                        photoUri = photoUri,
+                        numbers = listOf(ContactPhoneNumber(number = number, isPrimary = true)),
+                        isFavorite = starred
+                    )
+                } else null
+            }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
     private fun getRawContactId(contactId: Long): Long? {
         val cursor = context.contentResolver.query(
             ContactsContract.RawContacts.CONTENT_URI,

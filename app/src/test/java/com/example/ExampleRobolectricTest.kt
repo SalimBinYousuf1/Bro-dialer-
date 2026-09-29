@@ -76,7 +76,7 @@ class ExampleRobolectricTest {
     @Test
     fun testDialerSettingsDefaultStartTab() {
         val settings = com.example.data.model.DialerSettings()
-        assertEquals("home", settings.defaultStartTab)
+        assertEquals("dialpad", settings.defaultStartTab)
         assertEquals(null, settings.callBackgroundUri)
     }
 

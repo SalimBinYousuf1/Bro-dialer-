@@ -146,12 +146,19 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
-        val data: Uri? = intent?.data
-        if (data != null && (data.scheme == "tel" || intent.action == Intent.ACTION_DIAL || intent.action == Intent.ACTION_VIEW)) {
-            val schemeSpecific = data.schemeSpecificPart ?: ""
-            if (schemeSpecific.isNotBlank()) {
-                dialpadViewModel.setNumber(schemeSpecific)
-            }
+        if (intent == null) return
+        val data: Uri? = intent.data
+        var number = ""
+        if (data != null && (data.scheme == "tel" || intent.action == Intent.ACTION_DIAL || intent.action == Intent.ACTION_VIEW || intent.action == Intent.ACTION_CALL)) {
+            number = data.schemeSpecificPart ?: data.toString().removePrefix("tel:")
+        }
+        if (number.isBlank()) {
+            number = intent.getStringExtra(Intent.EXTRA_PHONE_NUMBER)
+                ?: intent.getStringExtra("android.telecom.extra.PHONE_NUMBER")
+                ?: ""
+        }
+        if (number.isNotBlank()) {
+            dialpadViewModel.setNumber(number)
         }
     }
 }
@@ -272,7 +279,7 @@ fun MainAppScaffold(
                     onEditBeforeCall = { number ->
                         dialpadViewModel.setNumber(number)
                         navController.navigate(Screen.Dialpad.route) {
-                            popUpTo(Screen.Home.route) { saveState = true }
+                            popUpTo(Screen.Dialpad.route) { saveState = true }
                             launchSingleTop = true
                             restoreState = true
                         }
