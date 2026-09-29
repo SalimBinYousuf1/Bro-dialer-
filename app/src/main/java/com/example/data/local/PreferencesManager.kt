@@ -34,6 +34,8 @@ class PreferencesManager(private val context: Context) {
         val CONFIRM_DELETE_CALL_LOG = booleanPreferencesKey("confirm_delete_call_log")
         val VOICEMAIL_NUMBER = stringPreferencesKey("voicemail_number")
         val BLOCK_UNKNOWN_NUMBERS = booleanPreferencesKey("block_unknown_numbers")
+        val AUTO_RECORD_CALLS = booleanPreferencesKey("auto_record_calls")
+        val AUTO_RECORD_UNKNOWN = booleanPreferencesKey("auto_record_unknown")
         val DEFAULT_START_TAB = stringPreferencesKey("default_start_tab")
         val CALL_BACKGROUND_URI = stringPreferencesKey("call_background_uri")
         val DEFAULT_RINGTONE_URI = stringPreferencesKey("default_ringtone_uri")
@@ -82,6 +84,8 @@ class PreferencesManager(private val context: Context) {
             confirmDeleteCallLog = prefs[Keys.CONFIRM_DELETE_CALL_LOG] ?: true,
             voicemailNumber = prefs[Keys.VOICEMAIL_NUMBER] ?: "",
             blockUnknownNumbers = prefs[Keys.BLOCK_UNKNOWN_NUMBERS] ?: false,
+            autoRecordCalls = prefs[Keys.AUTO_RECORD_CALLS] ?: false,
+            autoRecordUnknown = prefs[Keys.AUTO_RECORD_UNKNOWN] ?: false,
             defaultStartTab = prefs[Keys.DEFAULT_START_TAB] ?: "dialpad",
             callBackgroundUri = prefs[Keys.CALL_BACKGROUND_URI],
             defaultRingtoneUri = prefs[Keys.DEFAULT_RINGTONE_URI],
@@ -120,6 +124,8 @@ class PreferencesManager(private val context: Context) {
             prefs[Keys.CONFIRM_DELETE_CALL_LOG] = updated.confirmDeleteCallLog
             prefs[Keys.VOICEMAIL_NUMBER] = updated.voicemailNumber
             prefs[Keys.BLOCK_UNKNOWN_NUMBERS] = updated.blockUnknownNumbers
+            prefs[Keys.AUTO_RECORD_CALLS] = updated.autoRecordCalls
+            prefs[Keys.AUTO_RECORD_UNKNOWN] = updated.autoRecordUnknown
             prefs[Keys.DEFAULT_START_TAB] = updated.defaultStartTab
             prefs[Keys.QUICK_MESSAGES] = updated.quickMessages.joinToString("|||")
             if (updated.callBackgroundUri != null) {

@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.PhotoLibrary
@@ -298,6 +299,48 @@ fun SettingsScreen(
                                 ringtonePickerLauncher.launch(intent)
                             } catch (_: Exception) {}
                         }
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Section: Call Recording
+            SettingsSectionHeader("CALL RECORDING")
+            FrostCard(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Mic,
+                        title = "Auto-record all calls",
+                        subtitle = "Automatically record audio for incoming & outgoing calls",
+                        checked = settings.autoRecordCalls,
+                        onCheckedChange = viewModel::toggleAutoRecordCalls,
+                        testTag = "setting_auto_record_calls"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = textMuted.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Mic,
+                        title = "Auto-record unknown numbers",
+                        subtitle = "Automatically record calls from numbers not in contacts",
+                        checked = settings.autoRecordUnknown,
+                        onCheckedChange = viewModel::toggleAutoRecordUnknown,
+                        testTag = "setting_auto_record_unknown"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = textMuted.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    SettingsClickableRow(
+                        icon = Icons.Default.Mic,
+                        title = "View Call Recordings",
+                        subtitle = "Play, share, and manage recorded call files",
+                        badge = "Recordings",
+                        onClick = { onNavigate(Screen.CallRecordings.route) }
                     )
                 }
             }

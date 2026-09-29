@@ -22,6 +22,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 
 object CallManager {
@@ -32,6 +33,19 @@ object CallManager {
 
     private val _currentCallInfo = MutableStateFlow<ActiveCallInfo?>(null)
     val currentCallInfo: StateFlow<ActiveCallInfo?> = _currentCallInfo.asStateFlow()
+
+    init {
+        scope.launch {
+            CallRecorder.isRecording.collect { rec ->
+                _currentCallInfo.value = _currentCallInfo.value?.copy(isRecording = rec)
+            }
+        }
+        scope.launch {
+            CallRecorder.durationSeconds.collect { dur ->
+                _currentCallInfo.value = _currentCallInfo.value?.copy(recordingDurationSeconds = dur)
+            }
+        }
+    }
 
     private val callCallback = object : Call.Callback() {
         override fun onStateChanged(call: Call?, state: Int) {
@@ -108,9 +122,15 @@ object CallManager {
         inCallService?.applicationContext?.let { ctx ->
             IncomingCallNotificationHelper.dismissNotification(ctx)
         }
+        if (CallRecorder.isRecording.value) {
+            CallRecorder.stopRecording()
+        }
 
         if (activeCall == call) {
-            _currentCallInfo.value = _currentCallInfo.value?.copy(state = TelephonyCallState.DISCONNECTED)
+            _currentCallInfo.value = _currentCallInfo.value?.copy(
+                state = TelephonyCallState.DISCONNECTED,
+                isRecording = false
+            )
             activeCall = null
             Handler(Looper.getMainLooper()).postDelayed({
                 _currentCallInfo.value = null
@@ -180,6 +200,9 @@ object CallManager {
             System.currentTimeMillis()
         } else current?.connectTimeMillis ?: 0L
 
+        val isRec = CallRecorder.isRecording.value
+        val recDur = CallRecorder.durationSeconds.value
+
         val newInfo = ActiveCallInfo(
             callId = call.toString(),
             number = rawNumber,
@@ -191,9 +214,31 @@ object CallManager {
             isMuted = current?.isMuted ?: false,
             isSpeakerOn = current?.isSpeakerOn ?: false,
             isBluetoothOn = current?.isBluetoothOn ?: false,
-            isOnHold = stateEnum == TelephonyCallState.HOLDING
+            isOnHold = stateEnum == TelephonyCallState.HOLDING,
+            isRecording = isRec,
+            recordingDurationSeconds = recDur
         )
         _currentCallInfo.value = newInfo
+
+        // Automatic Call Recording check for standard dialers (Oppo / Vivo / Google Phone)
+        if (stateEnum == TelephonyCallState.ACTIVE && !isRec) {
+            scope.launch(Dispatchers.IO) {
+                try {
+                    val settings = SalimApplication.instance.preferencesManager.settingsFlow.firstOrNull()
+                    if (settings != null) {
+                        val shouldRecord = settings.autoRecordCalls || (settings.autoRecordUnknown && !isSaved)
+                        if (shouldRecord) {
+                            CallRecorder.startRecording(
+                                context = SalimApplication.instance,
+                                number = rawNumber,
+                                displayName = displayName,
+                                callId = call.toString()
+                            )
+                        }
+                    }
+                } catch (_: Exception) {}
+            }
+        }
 
         val context = inCallService?.applicationContext ?: SalimApplication.instance
 
@@ -307,5 +352,19 @@ object CallManager {
         try {
             com.example.ui.call.VideoCallActivity.start(context, number, name, photoUri)
         } catch (_: Exception) {}
+    }
+
+    fun toggleRecording(context: Context) {
+        val current = _currentCallInfo.value ?: return
+        if (CallRecorder.isRecording.value) {
+            CallRecorder.stopRecording()
+        } else {
+            CallRecorder.startRecording(
+                context = context,
+                number = current.number,
+                displayName = current.displayName,
+                callId = current.callId
+            )
+        }
     }
 }

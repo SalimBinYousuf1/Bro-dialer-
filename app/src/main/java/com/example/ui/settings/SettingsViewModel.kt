@@ -59,6 +59,18 @@ class SettingsViewModel(
         }
     }
 
+    fun toggleAutoRecordCalls(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.updateSettings { it.copy(autoRecordCalls = enabled) }
+        }
+    }
+
+    fun toggleAutoRecordUnknown(enabled: Boolean) {
+        viewModelScope.launch {
+            preferencesManager.updateSettings { it.copy(autoRecordUnknown = enabled) }
+        }
+    }
+
     fun setDefaultStartTab(tab: String) {
         viewModelScope.launch {
             preferencesManager.updateDefaultStartTab(tab)

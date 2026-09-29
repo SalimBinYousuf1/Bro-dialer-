@@ -24,7 +24,9 @@ data class ActiveCallInfo(
     val isOnHold: Boolean = false,
     val canHold: Boolean = true,
     val canMerge: Boolean = false,
-    val canSwap: Boolean = false
+    val canSwap: Boolean = false,
+    val isRecording: Boolean = false,
+    val recordingDurationSeconds: Long = 0L
 ) {
     val initials: String
         get() {

@@ -19,5 +19,6 @@ sealed class Screen(val route: String) {
             "contact_edit/$contactId?number=${android.net.Uri.encode(number)}"
     }
     data object ContactsSettings : Screen("contacts_settings")
+    data object CallRecordings : Screen("call_recordings")
     data object Permissions : Screen("permissions")
 }

@@ -27,6 +27,8 @@ data class DialerSettings(
     val confirmDeleteCallLog: Boolean = true,
     val voicemailNumber: String = "",
     val blockUnknownNumbers: Boolean = false,
+    val autoRecordCalls: Boolean = false,
+    val autoRecordUnknown: Boolean = false,
     val defaultStartTab: String = "dialpad", // "dialpad", "recents", "contacts", "home", "more"
     val callBackgroundUri: String? = null,
     val defaultRingtoneUri: String? = null,

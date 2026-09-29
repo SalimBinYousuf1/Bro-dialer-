@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PhoneAndroid
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
@@ -122,6 +123,18 @@ fun MoreScreen(
                         subtitle = "Spam screening and blocked list",
                         onClick = { onNavigate(Screen.BlockedNumbers.route) },
                         testTag = "more_blocked"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = textMuted.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    MoreNavRow(
+                        icon = Icons.Default.Mic,
+                        title = "Call Recordings",
+                        subtitle = "Recorded call audio and playback",
+                        onClick = { onNavigate(Screen.CallRecordings.route) },
+                        testTag = "more_recordings"
                     )
                 }
             }

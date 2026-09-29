@@ -360,19 +360,17 @@ object IncomingCallNotificationHelper {
             .setSmallIcon(android.R.drawable.stat_sys_phone_call)
             .setContentTitle(displayName)
             .setContentText(subtitle)
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setLargeIcon(finalAvatar)
+            .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(false)
             .setOngoing(true)
             .setContentIntent(contentPendingIntent)
-            .setFullScreenIntent(contentPendingIntent, false) // Satisfies Android 14+ CallStyle requirement
             .setUsesChronometer(true)
             .setWhen(connectWhen)
             .setColor(0xFF34C759.toInt()) // Apple Emerald Green
-            .setStyle(
-                NotificationCompat.CallStyle.forOngoingCall(person, endCallPendingIntent)
-            )
+            .addAction(android.R.drawable.ic_menu_close_clear_cancel, "End Call", endCallPendingIntent)
             .addAction(android.R.drawable.ic_lock_silent_mode_off, speakerLabel, speakerPendingIntent)
             .addAction(android.R.drawable.arrow_down_float, "Vol −", volDownPendingIntent)
             .addAction(android.R.drawable.arrow_up_float, "Vol +", volUpPendingIntent)
@@ -390,76 +388,17 @@ object IncomingCallNotificationHelper {
                 } else {
                     service.startForeground(NOTIFICATION_ID, notification)
                 }
-            } catch (_: Exception) {
-                postOngoingSafely(
-                    context,
-                    notification,
-                    displayName,
-                    subtitle,
-                    contentPendingIntent,
-                    connectWhen,
-                    endCallPendingIntent,
-                    speakerLabel,
-                    speakerPendingIntent,
-                    volDownPendingIntent,
-                    volUpPendingIntent
-                )
+            } catch (_: Throwable) {
+                try {
+                    val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                    notificationManager.notify(NOTIFICATION_ID, notification)
+                } catch (_: Throwable) {}
             }
         } else {
-            postOngoingSafely(
-                context,
-                notification,
-                displayName,
-                subtitle,
-                contentPendingIntent,
-                connectWhen,
-                endCallPendingIntent,
-                speakerLabel,
-                speakerPendingIntent,
-                volDownPendingIntent,
-                volUpPendingIntent
-            )
-        }
-    }
-
-    private fun postOngoingSafely(
-        context: Context,
-        notification: android.app.Notification,
-        displayName: String,
-        subtitle: String,
-        contentPendingIntent: PendingIntent,
-        connectWhen: Long,
-        endCallPendingIntent: PendingIntent,
-        speakerLabel: String,
-        speakerPendingIntent: PendingIntent,
-        volDownPendingIntent: PendingIntent,
-        volUpPendingIntent: PendingIntent
-    ) {
-        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        try {
-            notificationManager.notify(NOTIFICATION_ID, notification)
-        } catch (_: Exception) {
-            // Robust fallback for Android 14+ if CallStyle is strictly rejected by OS outside foreground service:
-            val fallbackBuilder = NotificationCompat.Builder(context, CHANNEL_ID_ONGOING)
-                .setSmallIcon(android.R.drawable.stat_sys_phone_call)
-                .setContentTitle(displayName)
-                .setContentText(subtitle)
-                .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-                .setCategory(NotificationCompat.CATEGORY_CALL)
-                .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-                .setAutoCancel(false)
-                .setOngoing(true)
-                .setContentIntent(contentPendingIntent)
-                .setUsesChronometer(true)
-                .setWhen(connectWhen)
-                .setColor(0xFF34C759.toInt())
-                .addAction(android.R.drawable.ic_menu_close_clear_cancel, "End Call", endCallPendingIntent)
-                .addAction(android.R.drawable.ic_lock_silent_mode_off, speakerLabel, speakerPendingIntent)
-                .addAction(android.R.drawable.arrow_down_float, "Vol −", volDownPendingIntent)
-                .addAction(android.R.drawable.arrow_up_float, "Vol +", volUpPendingIntent)
             try {
-                notificationManager.notify(NOTIFICATION_ID, fallbackBuilder.build())
-            } catch (_: Exception) {}
+                val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+                notificationManager.notify(NOTIFICATION_ID, notification)
+            } catch (_: Throwable) {}
         }
     }
 

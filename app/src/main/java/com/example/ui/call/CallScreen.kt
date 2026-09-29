@@ -111,6 +111,7 @@ fun CallScreen(
     callInfo: ActiveCallInfo?,
     backgroundUri: String? = null,
     quickMessages: List<String> = emptyList(),
+    isInPipMode: Boolean = false,
     onUpdateQuickMessages: (List<String>) -> Unit = {},
     onAnswer: () -> Unit,
     onDecline: () -> Unit,
@@ -118,11 +119,22 @@ fun CallScreen(
     onSpeakerToggle: () -> Unit,
     onHoldToggle: () -> Unit,
     onVideoCall: () -> Unit,
+    onToggleRecord: () -> Unit = {},
     onDtmfTone: (Char) -> Unit,
     onDtmfStop: () -> Unit,
     onSaveNote: (number: String, name: String?, note: String) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
+    if (isInPipMode) {
+        PipCallLayout(
+            callInfo = callInfo,
+            onDecline = onDecline,
+            onMuteToggle = { onMuteToggle(callInfo?.isMuted ?: false) },
+            onSpeakerToggle = onSpeakerToggle
+        )
+        return
+    }
+
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
@@ -269,6 +281,35 @@ fun CallScreen(
                     color = if (state == TelephonyCallState.RINGING) SalimGreen else Color.White.copy(alpha = 0.9f)
                 )
 
+                // Live Call Recording Indicator
+                if (callInfo?.isRecording == true) {
+                    val recMins = (callInfo.recordingDurationSeconds) / 60
+                    val recSecs = (callInfo.recordingDurationSeconds) % 60
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFFE53935))
+                            .border(1.dp, Color.White.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 10.dp, vertical = 4.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "REC %02d:%02d".format(recMins, recSecs),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                                color = Color.White
+                            )
+                        }
+                    }
+                }
+
                 // Sleek Apple Pill Segmented Tab Control (Controls | Notes | Keypad)
                 if (state == TelephonyCallState.ACTIVE || state == TelephonyCallState.HOLDING || state == TelephonyCallState.DIALING) {
                     Spacer(modifier = Modifier.height(14.dp))
@@ -333,9 +374,12 @@ fun CallScreen(
                             isMuted = callInfo?.isMuted ?: false,
                             isSpeakerOn = callInfo?.isSpeakerOn ?: false,
                             isOnHold = callInfo?.isOnHold ?: false,
+                            isRecording = callInfo?.isRecording ?: false,
+                            recordingDurationSeconds = callInfo?.recordingDurationSeconds ?: 0L,
                             onMuteToggle = { onMuteToggle(callInfo?.isMuted ?: false) },
                             onKeypadToggle = { activeTab = InCallTab.KEYPAD },
                             onSpeakerToggle = onSpeakerToggle,
+                            onRecordToggle = onToggleRecord,
                             onVideoCall = onVideoCall,
                             onHoldToggle = onHoldToggle,
                             onNotesToggle = { activeTab = InCallTab.NOTES }
@@ -671,9 +715,12 @@ private fun InCallControlsGrid(
     isMuted: Boolean,
     isSpeakerOn: Boolean,
     isOnHold: Boolean,
+    isRecording: Boolean,
+    recordingDurationSeconds: Long,
     onMuteToggle: () -> Unit,
     onKeypadToggle: () -> Unit,
     onSpeakerToggle: () -> Unit,
+    onRecordToggle: () -> Unit,
     onVideoCall: () -> Unit,
     onHoldToggle: () -> Unit,
     onNotesToggle: () -> Unit
@@ -712,17 +759,24 @@ private fun InCallControlsGrid(
             )
         }
 
-        // Row 2: Video Call, Hold, Notes
+        // Row 2: Record, Hold, Notes
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceAround
         ) {
+            val recLabel = if (isRecording) {
+                val mins = recordingDurationSeconds / 60
+                val secs = recordingDurationSeconds % 60
+                "%02d:%02d".format(mins, secs)
+            } else "Record"
+
             InCallIconButton(
-                icon = Icons.Default.Videocam,
-                label = "Video Call",
-                isActive = false,
-                onClick = onVideoCall,
-                testTag = "incall_video_btn"
+                icon = Icons.Default.Mic,
+                label = recLabel,
+                isActive = isRecording,
+                activeColor = Color(0xFFE53935),
+                onClick = onRecordToggle,
+                testTag = "incall_record_btn"
             )
             InCallIconButton(
                 icon = Icons.Default.Pause,
@@ -739,6 +793,20 @@ private fun InCallControlsGrid(
                 testTag = "incall_notes_btn"
             )
         }
+
+        // Row 3: Video Call (compact quick action)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            InCallIconButton(
+                icon = Icons.Default.Videocam,
+                label = "Video Call",
+                isActive = false,
+                onClick = onVideoCall,
+                testTag = "incall_video_btn"
+            )
+        }
     }
 }
 
@@ -747,6 +815,7 @@ private fun InCallIconButton(
     icon: ImageVector,
     label: String,
     isActive: Boolean,
+    activeColor: Color = Color.White,
     onClick: () -> Unit,
     testTag: String = ""
 ) {
@@ -754,16 +823,17 @@ private fun InCallIconButton(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.padding(4.dp)
     ) {
+        val isCustomColor = activeColor != Color.White
         Box(
             modifier = Modifier
                 .size(64.dp)
                 .background(
-                    if (isActive) Color.White else Color(0x38FFFFFF),
+                    if (isActive) activeColor else Color(0x38FFFFFF),
                     CircleShape
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isActive) Color.White else Color.White.copy(alpha = 0.25f),
+                    color = if (isActive) activeColor else Color.White.copy(alpha = 0.25f),
                     shape = CircleShape
                 )
                 .liquidGlassInteractive(
@@ -778,7 +848,7 @@ private fun InCallIconButton(
             Icon(
                 imageVector = icon,
                 contentDescription = label,
-                tint = if (isActive) Color.Black else Color.White,
+                tint = if (isActive) (if (isCustomColor) Color.White else Color.Black) else Color.White,
                 modifier = Modifier.size(28.dp)
             )
         }
@@ -791,6 +861,95 @@ private fun InCallIconButton(
             ),
             color = Color.White
         )
+    }
+}
+
+@Composable
+private fun PipCallLayout(
+    callInfo: ActiveCallInfo?,
+    onDecline: () -> Unit,
+    onMuteToggle: () -> Unit,
+    onSpeakerToggle: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFF1C1C1E))
+            .padding(8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.fillMaxSize()
+        ) {
+            SalimAvatar(
+                name = callInfo?.displayName?.ifBlank { callInfo.number } ?: "Caller",
+                photoUri = callInfo?.photoUri,
+                size = 44.dp
+            )
+
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = callInfo?.displayName?.ifBlank { callInfo.number } ?: "Call",
+                    style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                    color = Color.White,
+                    maxLines = 1,
+                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                )
+                Text(
+                    text = "In Call",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = Color(0xFF34C759)
+                )
+            }
+
+            Row(
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                IconButton(
+                    onClick = onMuteToggle,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (callInfo?.isMuted == true) Icons.Default.MicOff else Icons.Default.Mic,
+                        contentDescription = "Mute",
+                        tint = if (callInfo?.isMuted == true) Color(0xFFFF3B30) else Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFFF3B30))
+                        .clickable(onClick = onDecline),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.CallEnd,
+                        contentDescription = "End Call",
+                        tint = Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onSpeakerToggle,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (callInfo?.isSpeakerOn == true) Icons.Default.VolumeUp else Icons.Default.VolumeDown,
+                        contentDescription = "Speaker",
+                        tint = if (callInfo?.isSpeakerOn == true) Color(0xFF34C759) else Color.White,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

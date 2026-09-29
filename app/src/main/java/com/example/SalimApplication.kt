@@ -8,6 +8,7 @@ import com.example.data.local.SalimDatabase
 import com.example.data.repository.BlockedRepository
 import com.example.data.repository.CallLogRepository
 import com.example.data.repository.CallNoteRepository
+import com.example.data.repository.CallRecordingRepository
 import com.example.data.repository.ContactAvatarRepository
 import com.example.data.repository.ContactCustomizationRepository
 import com.example.data.repository.ContactsRepository
@@ -46,6 +47,9 @@ class SalimApplication : Application() {
     lateinit var recentlyDeletedRepository: RecentlyDeletedRepository
         private set
 
+    lateinit var callRecordingRepository: CallRecordingRepository
+        private set
+
     var isAppInForeground: Boolean = false
         private set
 
@@ -64,6 +68,7 @@ class SalimApplication : Application() {
         contactCustomizationRepository = ContactCustomizationRepository(this)
         callNoteRepository = CallNoteRepository(database.callNoteDao())
         recentlyDeletedRepository = RecentlyDeletedRepository(database.recentlyDeletedContactDao())
+        callRecordingRepository = CallRecordingRepository(this, database.callRecordingDao())
 
         registerActivityLifecycleCallbacks(object : ActivityLifecycleCallbacks {
             override fun onActivityCreated(activity: Activity, savedInstanceState: Bundle?) {}

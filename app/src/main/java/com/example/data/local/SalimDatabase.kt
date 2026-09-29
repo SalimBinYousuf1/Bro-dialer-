@@ -6,11 +6,13 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.dao.BlockedNumberDao
 import com.example.data.dao.CallNoteDao
+import com.example.data.dao.CallRecordingDao
 import com.example.data.dao.ContactAvatarDao
 import com.example.data.dao.ContactCustomizationDao
 import com.example.data.dao.RecentlyDeletedContactDao
 import com.example.data.model.BlockedNumber
 import com.example.data.model.CallNote
+import com.example.data.model.CallRecording
 import com.example.data.model.ContactAvatar
 import com.example.data.model.ContactCustomization
 import com.example.data.model.RecentlyDeletedContact
@@ -21,9 +23,10 @@ import com.example.data.model.RecentlyDeletedContact
         ContactAvatar::class,
         CallNote::class,
         RecentlyDeletedContact::class,
-        ContactCustomization::class
+        ContactCustomization::class,
+        CallRecording::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class SalimDatabase : RoomDatabase() {
@@ -33,6 +36,7 @@ abstract class SalimDatabase : RoomDatabase() {
     abstract fun callNoteDao(): CallNoteDao
     abstract fun recentlyDeletedContactDao(): RecentlyDeletedContactDao
     abstract fun contactCustomizationDao(): ContactCustomizationDao
+    abstract fun callRecordingDao(): CallRecordingDao
 
     companion object {
         @Volatile

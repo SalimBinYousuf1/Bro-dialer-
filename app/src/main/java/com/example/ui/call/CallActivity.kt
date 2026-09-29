@@ -1,10 +1,13 @@
 package com.example.ui.call
 
 import android.app.KeyguardManager
+import android.app.PictureInPictureParams
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.util.Rational
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,7 +15,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.example.SalimApplication
 import com.example.data.model.ContactCustomization
@@ -26,6 +31,32 @@ import kotlinx.coroutines.launch
 class CallActivity : ComponentActivity() {
 
     private var proximityWakeLock: android.os.PowerManager.WakeLock? = null
+    private var isInPipMode by mutableStateOf(false)
+
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        val callInfo = CallManager.currentCallInfo.value
+        // Standard Android dialer behavior (Google Phone / Oppo / Vivo):
+        // When user leaves during an active call, transition to Picture-in-Picture
+        if (callInfo?.state == com.example.data.model.TelephonyCallState.ACTIVE) {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                try {
+                    val params = PictureInPictureParams.Builder()
+                        .setAspectRatio(Rational(9, 16))
+                        .build()
+                    enterPictureInPictureMode(params)
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isInPipMode = isInPictureInPictureMode
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -111,6 +142,7 @@ class CallActivity : ComponentActivity() {
                     callInfo = callInfo,
                     backgroundUri = effectiveBackgroundUri,
                     quickMessages = persistentQuickMessages,
+                    isInPipMode = isInPipMode,
                     onUpdateQuickMessages = { updatedList ->
                         lifecycleScope.launch {
                             SalimApplication.instance.preferencesManager.updateQuickMessages(updatedList)
@@ -134,6 +166,9 @@ class CallActivity : ComponentActivity() {
                     onVideoCall = {
                         val number = callInfo?.number ?: ""
                         CallManager.startVideoCall(this@CallActivity, number)
+                    },
+                    onToggleRecord = {
+                        CallManager.toggleRecording(this@CallActivity)
                     },
                     onDtmfTone = { digit -> CallManager.playDtmfTone(digit) },
                     onDtmfStop = { CallManager.stopDtmfTone() },

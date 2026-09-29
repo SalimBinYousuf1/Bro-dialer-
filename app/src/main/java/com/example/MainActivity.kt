@@ -341,6 +341,12 @@ fun MainAppScaffold(
                 )
             }
 
+            composable(Screen.CallRecordings.route) {
+                com.example.ui.recordings.CallRecordingsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
             composable(Screen.Settings.route) {
                 SettingsScreen(
                     viewModel = settingsViewModel,
