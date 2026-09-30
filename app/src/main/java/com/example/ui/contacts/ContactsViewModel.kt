@@ -73,8 +73,29 @@ class ContactsViewModel(
         }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    private val contactsObserver = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+            super.onChange(selfChange, uri)
+            loadContacts()
+        }
+    }
+
     init {
         loadContacts()
+        try {
+            SalimApplication.instance.contentResolver.registerContentObserver(
+                android.provider.ContactsContract.Contacts.CONTENT_URI,
+                true,
+                contactsObserver
+            )
+        } catch (_: Exception) {}
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        try {
+            SalimApplication.instance.contentResolver.unregisterContentObserver(contactsObserver)
+        } catch (_: Exception) {}
     }
 
     fun loadContacts() {

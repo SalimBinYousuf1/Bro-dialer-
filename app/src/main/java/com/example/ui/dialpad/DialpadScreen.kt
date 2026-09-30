@@ -4,6 +4,8 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
@@ -42,6 +44,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -88,6 +91,8 @@ fun DialpadScreen(
     val enteredNumber by viewModel.enteredNumber.collectAsState()
     val matchedContacts by viewModel.matchedContacts.collectAsState()
     val matchedSavedContact by viewModel.matchedSavedContact.collectAsState()
+    val availableSims by viewModel.availableSims.collectAsState()
+    val selectedSimId by viewModel.selectedSimId.collectAsState()
 
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight
     val textMuted = if (dark) GlassTextSecondaryDark else GlassTextSecondaryLight
@@ -261,6 +266,46 @@ fun DialpadScreen(
                 }
             }
 
+            // Dual-SIM Switcher Chip Row when device has multiple active SIMs (Vivo / Oppo / Samsung standard)
+            if (availableSims.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 24.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    availableSims.forEach { sim ->
+                        val isSelected = sim.simId == selectedSimId
+                        Box(
+                            modifier = Modifier
+                                .padding(horizontal = 4.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) CallEmerald.copy(alpha = 0.22f)
+                                    else if (dark) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f)
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 0.5.dp,
+                                    color = if (isSelected) CallEmerald else textMuted.copy(alpha = 0.2f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable { viewModel.setSelectedSim(sim.simId) }
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = if (sim.carrierName.isNotBlank()) "SIM ${sim.simId}: ${sim.carrierName}" else "SIM ${sim.simId}",
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
+                                ),
+                                color = if (isSelected) CallEmerald else textPrimary
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
             Spacer(modifier = Modifier.height(10.dp))
 
             // Keypad Grid (3x4)
@@ -345,6 +390,26 @@ fun DialpadScreen(
                             tint = Color.White,
                             modifier = Modifier.size(34.dp)
                         )
+                        if (availableSims.size > 1) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 4.dp, bottom = 4.dp)
+                                    .size(20.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.White),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = selectedSimId.toString(),
+                                    style = MaterialTheme.typography.labelSmall.copy(
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    ),
+                                    color = Color(0xFF1B5E20)
+                                )
+                            }
+                        }
                     }
 
                     // Backspace button

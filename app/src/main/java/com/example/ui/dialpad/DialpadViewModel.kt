@@ -57,8 +57,23 @@ class DialpadViewModel(
     private val _matchedSavedContact = MutableStateFlow<ContactItem?>(null)
     val matchedSavedContact: StateFlow<ContactItem?> = _matchedSavedContact.asStateFlow()
 
+    private val _availableSims = MutableStateFlow<List<com.example.util.SimAccount>>(emptyList())
+    val availableSims: StateFlow<List<com.example.util.SimAccount>> = _availableSims.asStateFlow()
+
+    private val _selectedSimId = MutableStateFlow(1)
+    val selectedSimId: StateFlow<Int> = _selectedSimId.asStateFlow()
+
     init {
         loadContacts()
+        loadSims()
+    }
+
+    fun loadSims() {
+        _availableSims.value = com.example.util.SimHelper.getActiveSims(SalimApplication.instance)
+    }
+
+    fun setSelectedSim(simId: Int) {
+        _selectedSimId.value = simId
     }
 
     fun loadContacts() {
@@ -109,7 +124,7 @@ class DialpadViewModel(
         }
     }
 
-    fun onCallButtonPressed(): Boolean {
+    fun onCallButtonPressed(simId: Int = _selectedSimId.value): Boolean {
         val current = _enteredNumber.value.trim()
         return if (current.isBlank()) {
             viewModelScope.launch {
@@ -121,7 +136,7 @@ class DialpadViewModel(
             }
             false
         } else {
-            makeCall(current)
+            makeCall(current, simId)
         }
     }
 
@@ -133,7 +148,7 @@ class DialpadViewModel(
         } catch (_: Exception) {
             "*86"
         }
-        return makeCall(vmNumber)
+        return makeCall(vmNumber, _selectedSimId.value)
     }
 
     fun pasteNumber(text: String) {
@@ -144,10 +159,10 @@ class DialpadViewModel(
         }
     }
 
-    fun makeCall(number: String = _enteredNumber.value): Boolean {
+    fun makeCall(number: String = _enteredNumber.value, simId: Int = _selectedSimId.value): Boolean {
         if (number.isBlank()) return false
         provideHaptic()
-        return telecomRepository.makeCall(number)
+        return telecomRepository.makeCall(number, simId)
     }
 
     private fun provideFeedback(digit: Char) {
