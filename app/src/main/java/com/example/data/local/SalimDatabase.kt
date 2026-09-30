@@ -10,7 +10,9 @@ import com.example.data.dao.CallRecordingDao
 import com.example.data.dao.ContactAvatarDao
 import com.example.data.dao.ContactCustomizationDao
 import com.example.data.dao.RecentlyDeletedContactDao
+import com.example.data.local.CallbackReminderDao
 import com.example.data.model.BlockedNumber
+import com.example.data.model.CallbackReminder
 import com.example.data.model.CallNote
 import com.example.data.model.CallRecording
 import com.example.data.model.ContactAvatar
@@ -24,9 +26,10 @@ import com.example.data.model.RecentlyDeletedContact
         CallNote::class,
         RecentlyDeletedContact::class,
         ContactCustomization::class,
-        CallRecording::class
+        CallRecording::class,
+        CallbackReminder::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class SalimDatabase : RoomDatabase() {
@@ -37,6 +40,7 @@ abstract class SalimDatabase : RoomDatabase() {
     abstract fun recentlyDeletedContactDao(): RecentlyDeletedContactDao
     abstract fun contactCustomizationDao(): ContactCustomizationDao
     abstract fun callRecordingDao(): CallRecordingDao
+    abstract fun callbackReminderDao(): CallbackReminderDao
 
     companion object {
         @Volatile

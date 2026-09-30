@@ -20,5 +20,6 @@ sealed class Screen(val route: String) {
     }
     data object ContactsSettings : Screen("contacts_settings")
     data object CallRecordings : Screen("call_recordings")
+    data object Analytics : Screen("analytics")
     data object Permissions : Screen("permissions")
 }

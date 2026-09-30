@@ -123,7 +123,9 @@ object CallManager {
             IncomingCallNotificationHelper.dismissNotification(ctx)
         }
         if (CallRecorder.isRecording.value) {
-            CallRecorder.stopRecording()
+            inCallService?.applicationContext?.let { ctx ->
+                CallRecordingService.stop(ctx)
+            } ?: CallRecorder.stopRecording()
         }
 
         if (activeCall == call) {
@@ -228,10 +230,10 @@ object CallManager {
                     if (settings != null) {
                         val shouldRecord = settings.autoRecordCalls || (settings.autoRecordUnknown && !isSaved)
                         if (shouldRecord) {
-                            CallRecorder.startRecording(
+                            CallRecordingService.start(
                                 context = SalimApplication.instance,
                                 number = rawNumber,
-                                displayName = displayName,
+                                name = displayName,
                                 callId = call.toString()
                             )
                         }
@@ -244,6 +246,32 @@ object CallManager {
 
         when (stateEnum) {
             TelephonyCallState.RINGING -> {
+                // Defense-in-depth: check if number is blocked or unknown blocking is active
+                if (rawNumber.isNotBlank()) {
+                    var isBlocked = false
+                    var blockUnknown = false
+                    try {
+                        kotlinx.coroutines.runBlocking(Dispatchers.IO) {
+                            val app = SalimApplication.instance
+                            isBlocked = app.blockedRepository.isNumberBlocked(rawNumber)
+                            blockUnknown = app.preferencesManager.settingsFlow.firstOrNull()?.blockUnknownNumbers == true
+                        }
+                    } catch (_: Exception) {}
+
+                    if (isBlocked || (blockUnknown && contact == null)) {
+                        try {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                                call.reject(Call.REJECT_REASON_DECLINED)
+                            } else {
+                                @Suppress("DEPRECATION")
+                                call.reject(false, null)
+                            }
+                        } catch (_: Exception) {
+                            call.disconnect()
+                        }
+                        return
+                    }
+                }
                 IncomingCallNotificationHelper.showIncomingCallNotification(context, call, contact)
             }
             TelephonyCallState.ACTIVE -> {
@@ -254,7 +282,7 @@ object CallManager {
                 IncomingCallNotificationHelper.stopRingtone()
                 IncomingCallNotificationHelper.dismissNotification(context)
                 if (CallRecorder.isRecording.value) {
-                    CallRecorder.stopRecording()
+                    CallRecordingService.stop(context)
                 }
             }
             else -> {
@@ -360,12 +388,12 @@ object CallManager {
     fun toggleRecording(context: Context) {
         val current = _currentCallInfo.value ?: return
         if (CallRecorder.isRecording.value) {
-            CallRecorder.stopRecording()
+            CallRecordingService.stop(context)
         } else {
-            CallRecorder.startRecording(
+            CallRecordingService.start(
                 context = context,
                 number = current.number,
-                displayName = current.displayName,
+                name = current.displayName,
                 callId = current.callId
             )
         }

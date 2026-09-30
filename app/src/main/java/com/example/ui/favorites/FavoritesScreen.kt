@@ -52,7 +52,7 @@ fun FavoritesScreen(
     modifier: Modifier = Modifier
 ) {
     val dark = isSystemInDarkTheme()
-    val contacts by viewModel.rawContacts.collectAsState()
+    val contacts by viewModel.filteredContacts.collectAsState()
     val favorites = contacts.filter { it.isFavorite }
 
     val textPrimary = if (dark) GlassTextPrimaryDark else GlassTextPrimaryLight

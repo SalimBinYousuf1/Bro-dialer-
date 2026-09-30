@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowForwardIos
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Mic
@@ -135,6 +136,18 @@ fun MoreScreen(
                         subtitle = "Recorded call audio and playback",
                         onClick = { onNavigate(Screen.CallRecordings.route) },
                         testTag = "more_recordings"
+                    )
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = textMuted.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
+                    MoreNavRow(
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                        title = "Call Analytics",
+                        subtitle = "Call statistics, duration trends, and frequency",
+                        onClick = { onNavigate(Screen.Analytics.route) },
+                        testTag = "more_analytics"
                     )
                 }
             }

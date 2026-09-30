@@ -19,7 +19,11 @@
     <uses-permission android:name="android.permission.SEND_SMS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_PHONE_CALL" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
@@ -29,6 +33,7 @@
         <package android:name="com.whatsapp.w4b" />
         <package android:name="org.telegram.messenger" />
         <package android:name="org.thunderdog.challegram" />
+        <package android:name="com.google.android.apps.tachyon" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
@@ -127,6 +132,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Broadcast Receiver for Scheduled Callback Reminders -->
+        <receiver
+            android:name=".telephony.CallbackReminderReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="com.example.telephony.action.TRIGGER_REMINDER" />
+                <action android:name="com.example.telephony.action.CALL_NOW" />
+                <action android:name="com.example.telephony.action.DISMISS_REMINDER" />
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Telecom InCallService -->
         <service
             android:name=".telephony.SalimInCallService"
@@ -153,6 +170,12 @@
                 <action android:name="android.telecom.CallScreeningService" />
             </intent-filter>
         </service>
+
+        <!-- Dedicated Microphone Foreground Service for Call Recording (Android 14+ Compliant) -->
+        <service
+            android:name=".telephony.CallRecordingService"
+            android:foregroundServiceType="microphone"
+            android:exported="false" />
 
         <provider
             android:name="androidx.core.content.FileProvider"

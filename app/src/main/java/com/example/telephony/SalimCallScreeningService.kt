@@ -27,28 +27,30 @@ class SalimCallScreeningService : CallScreeningService() {
 
         scope.launch {
             try {
-                val app = SalimApplication.instance
-                val blockedRepo = app.blockedRepository
-                val settings = app.preferencesManager.settingsFlow.firstOrNull()
+                kotlinx.coroutines.withTimeoutOrNull(4000) {
+                    val app = SalimApplication.instance
+                    val blockedRepo = app.blockedRepository
+                    val settings = app.preferencesManager.settingsFlow.firstOrNull()
 
-                val isBlocked = if (rawNumber.isNotBlank()) {
-                    blockedRepo.isNumberBlocked(rawNumber)
-                } else false
+                    val isBlocked = if (rawNumber.isNotBlank()) {
+                        blockedRepo.isNumberBlocked(rawNumber)
+                    } else false
 
-                val isUnknown = rawNumber.isBlank() || isUnknownCaller(rawNumber)
-                val blockUnknown = settings?.autoRecordUnknown ?: false
+                    val isUnknown = rawNumber.isBlank() || isUnknownCaller(rawNumber)
+                    val shouldBlockUnknown = settings?.blockUnknownNumbers == true
 
-                if (isBlocked) {
-                    val response = CallResponse.Builder()
-                        .setDisallowCall(true)
-                        .setRejectCall(true)
-                        .setSkipCallLog(false)
-                        .setSkipNotification(true)
-                        .build()
-                    respondToCall(callDetails, response)
-                } else {
-                    respondAllowed(callDetails)
-                }
+                    if (isBlocked || (shouldBlockUnknown && isUnknown)) {
+                        val response = CallResponse.Builder()
+                            .setDisallowCall(true)
+                            .setRejectCall(true)
+                            .setSkipCallLog(false) // Logged in CallLog as blocked call
+                            .setSkipNotification(true) // Silent, no notification or ringing
+                            .build()
+                        respondToCall(callDetails, response)
+                    } else {
+                        respondAllowed(callDetails)
+                    }
+                } ?: respondAllowed(callDetails)
             } catch (_: Exception) {
                 respondAllowed(callDetails)
             }

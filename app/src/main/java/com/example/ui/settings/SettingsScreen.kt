@@ -32,8 +32,10 @@ import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.Dialpad
+import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.PhoneAndroid
@@ -101,6 +103,11 @@ fun SettingsScreen(
 
     var showDefaultTabDialog by remember { mutableStateOf(false) }
     var showThemeDialog by remember { mutableStateOf(false) }
+    var isAppLockEnabled by remember { mutableStateOf(com.example.security.AppLockManager.isAppLockEnabled(context)) }
+    var isBiometricEnabled by remember { mutableStateOf(com.example.security.AppLockManager.isBiometricEnabled(context)) }
+    val isBiometricAvailable = remember { com.example.security.AppLockManager.isBiometricAvailable(context) }
+    var showSetPinDialog by remember { mutableStateOf(false) }
+    var newPinInput by remember { mutableStateOf("") }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickVisualMedia()
@@ -417,10 +424,52 @@ fun SettingsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Section 5: Blocked Numbers & Spam
+            // Section 5: Blocked Numbers & Security
             SettingsSectionHeader("SECURITY & BLOCKING")
             FrostCard(modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(vertical = 4.dp)) {
+                    SettingsSwitchRow(
+                        icon = Icons.Default.Lock,
+                        title = "App Lock (PIN Protection)",
+                        subtitle = if (isAppLockEnabled) "Phone dialer & contacts protected with PIN" else "Require PIN code to open dialer",
+                        checked = isAppLockEnabled,
+                        onCheckedChange = { enable ->
+                            if (enable) {
+                                newPinInput = ""
+                                showSetPinDialog = true
+                            } else {
+                                com.example.security.AppLockManager.disableAppLock(context)
+                                isAppLockEnabled = false
+                                isBiometricEnabled = false
+                            }
+                        },
+                        testTag = "setting_app_lock"
+                    )
+
+                    if (isAppLockEnabled && isBiometricAvailable) {
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = textMuted.copy(alpha = 0.2f),
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
+                        SettingsSwitchRow(
+                            icon = Icons.Default.Fingerprint,
+                            title = "Biometric Unlock",
+                            subtitle = "Use fingerprint or face to unlock Salim",
+                            checked = isBiometricEnabled,
+                            onCheckedChange = { bio ->
+                                com.example.security.AppLockManager.setBiometricEnabled(context, bio)
+                                isBiometricEnabled = bio
+                            },
+                            testTag = "setting_biometric_unlock"
+                        )
+                    }
+
+                    HorizontalDivider(
+                        thickness = 0.5.dp,
+                        color = textMuted.copy(alpha = 0.2f),
+                        modifier = Modifier.padding(horizontal = 16.dp)
+                    )
                     SettingsClickableRow(
                         icon = Icons.Default.Block,
                         title = "Blocked Numbers",
@@ -543,6 +592,61 @@ fun SettingsScreen(
                 FrostButton(
                     text = "Cancel",
                     onClick = { showThemeDialog = false }
+                )
+            },
+            shape = RoundedCornerShape(22.dp),
+            containerColor = if (dark) GlassBackgroundDark else GlassBackgroundLight
+        )
+    }
+
+    if (showSetPinDialog) {
+        AlertDialog(
+            onDismissRequest = { showSetPinDialog = false },
+            title = {
+                Text(
+                    text = "Set 4-Digit App Lock PIN",
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    color = textPrimary
+                )
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "Enter a 4-digit PIN to secure Salim Dialer and your contacts.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = textMuted
+                    )
+                    Spacer(modifier = Modifier.height(14.dp))
+                    androidx.compose.material3.OutlinedTextField(
+                        value = newPinInput,
+                        onValueChange = { if (it.length <= 4 && it.all { c -> c.isDigit() }) newPinInput = it },
+                        label = { Text("4-Digit PIN") },
+                        singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                        ),
+                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                FrostButton(
+                    text = "Save PIN",
+                    onClick = {
+                        if (newPinInput.length == 4) {
+                            com.example.security.AppLockManager.setPin(context, newPinInput)
+                            isAppLockEnabled = true
+                            showSetPinDialog = false
+                        }
+                    },
+                    enabled = newPinInput.length == 4
+                )
+            },
+            dismissButton = {
+                FrostButton(
+                    text = "Cancel",
+                    onClick = { showSetPinDialog = false }
                 )
             },
             shape = RoundedCornerShape(22.dp),

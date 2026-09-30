@@ -417,7 +417,13 @@ class ContactsRepository(private val context: Context) {
                         lookupKey = lookupKey,
                         name = name,
                         photoUri = photoUri,
-                        numbers = listOf(ContactPhoneNumber(number = number, isPrimary = true)),
+                        numbers = listOf(
+                            ContactPhoneNumber(
+                                number = number,
+                                normalizedNumber = PhoneNumberHelper.normalizeNumber(number),
+                                isPrimary = true
+                            )
+                        ),
                         isFavorite = starred
                     )
                 } else null

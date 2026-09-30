@@ -22,6 +22,7 @@ import java.io.File
 object CallRecorder {
 
     private const val TAG = "CallRecorder"
+    private val recordingLock = Any()
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private var mediaRecorder: MediaRecorder? = null
@@ -44,7 +45,7 @@ object CallRecorder {
         number: String,
         displayName: String,
         callId: String
-    ): Boolean {
+    ): Boolean = synchronized(recordingLock) {
         if (_isRecording.value) return true
 
         val cleanNumber = PhoneNumberHelper.normalizeNumber(number).ifBlank { "unknown" }
@@ -125,7 +126,7 @@ object CallRecorder {
         }
     }
 
-    fun stopRecording(): CallRecording? {
+    fun stopRecording(): CallRecording? = synchronized(recordingLock) {
         if (!_isRecording.value) return null
 
         timerJob?.cancel()
@@ -145,7 +146,7 @@ object CallRecorder {
         } catch (_: Exception) {}
         mediaRecorder = null
 
-        if (file != null && file.exists() && file.length() > 0) {
+        if (file != null && file.exists() && file.length() >= 512L) {
             val record = CallRecording(
                 callId = currentCallId,
                 phoneNumber = currentNumber,

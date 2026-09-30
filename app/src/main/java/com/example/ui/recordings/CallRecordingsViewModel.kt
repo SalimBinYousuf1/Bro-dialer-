@@ -76,28 +76,32 @@ class CallRecordingsViewModel : ViewModel() {
         try {
             val player = MediaPlayer().apply {
                 setDataSource(file.absolutePath)
-                prepare()
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                    playbackParams = playbackParams.setSpeed(_playbackSpeed.value)
+                setOnPreparedListener { mp ->
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                        try {
+                            mp.playbackParams = mp.playbackParams.setSpeed(_playbackSpeed.value)
+                        } catch (_: Exception) {}
+                    }
+                    mp.start()
+                    _isPlaying.value = true
+                    _activePlayingId.value = recording.id
+                    _currentPositionSeconds.value = 0L
+
+                    progressJob?.cancel()
+                    progressJob = viewModelScope.launch {
+                        while (isActive && _isPlaying.value) {
+                            val pos = (mediaPlayer?.currentPosition ?: 0) / 1000L
+                            _currentPositionSeconds.value = pos
+                            delay(300)
+                        }
+                    }
                 }
                 setOnCompletionListener {
                     stopPlayback()
                 }
-                start()
+                prepareAsync()
             }
             mediaPlayer = player
-            _activePlayingId.value = recording.id
-            _isPlaying.value = true
-            _currentPositionSeconds.value = 0L
-
-            progressJob?.cancel()
-            progressJob = viewModelScope.launch {
-                while (isActive && _isPlaying.value) {
-                    val pos = (mediaPlayer?.currentPosition ?: 0) / 1000L
-                    _currentPositionSeconds.value = pos
-                    delay(300)
-                }
-            }
         } catch (_: Exception) {
             stopPlayback()
         }
@@ -183,17 +187,7 @@ class CallRecordingsViewModel : ViewModel() {
             }
             context.startActivity(chooser)
         } catch (_: Exception) {
-            // Fallback plain share
-            try {
-                val file = File(recording.filePath)
-                val uri = Uri.fromFile(file)
-                val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "audio/*"
-                    putExtra(Intent.EXTRA_STREAM, uri)
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                context.startActivity(Intent.createChooser(shareIntent, "Share Call Recording"))
-            } catch (_: Exception) {}
+            // Sharing handled gracefully
         }
     }
 

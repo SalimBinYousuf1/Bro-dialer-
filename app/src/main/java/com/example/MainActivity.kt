@@ -92,9 +92,18 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by settingsViewModel.settings.collectAsState()
             val themeMode = settings.themeMode
+            val isAppLocked by com.example.security.AppLockManager.isLocked.collectAsState()
 
             SalimTheme(themeMode = themeMode) {
-                if (themeMode == com.example.data.model.ThemeMode.SALIM) {
+                if (isAppLocked) {
+                    com.example.ui.security.AppLockScreen(
+                        onUnlocked = { com.example.security.AppLockManager.recordUnlock(this@MainActivity) },
+                        onEmergencyCall = {
+                            dialpadViewModel.setNumber("911")
+                            dialpadViewModel.makeCall("911")
+                        }
+                    )
+                } else if (themeMode == com.example.data.model.ThemeMode.SALIM) {
                     com.example.ui.components.LiquidGlassSystem {
                         MainAppScaffold(
                             dialpadViewModel = dialpadViewModel,
@@ -137,6 +146,11 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        com.example.security.AppLockManager.onAppResume(this)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -343,6 +357,12 @@ fun MainAppScaffold(
 
             composable(Screen.CallRecordings.route) {
                 com.example.ui.recordings.CallRecordingsScreen(
+                    onNavigateBack = { navController.popBackStack() }
+                )
+            }
+
+            composable(Screen.Analytics.route) {
+                com.example.ui.analytics.CallAnalyticsScreen(
                     onNavigateBack = { navController.popBackStack() }
                 )
             }

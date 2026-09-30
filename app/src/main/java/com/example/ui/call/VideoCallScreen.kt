@@ -194,13 +194,55 @@ fun VideoCallScreen(
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "HD FaceTime Video • $formattedDuration",
+                        text = "Camera Active • $formattedDuration",
                         style = MaterialTheme.typography.bodyMedium.copy(
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp
                         ),
                         color = Color.White.copy(alpha = 0.8f)
                     )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Real Video Call Providers
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF25D366).copy(alpha = 0.25f))
+                            .border(1.dp, Color(0xFF25D366), RoundedCornerShape(12.dp))
+                            .clickable {
+                                com.example.util.VideoLauncher.launchWhatsAppVideo(context, phoneNumber)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "WhatsApp Video",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF25D366)
+                        )
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Color(0xFF1A73E8).copy(alpha = 0.25f))
+                            .border(1.dp, Color(0xFF1A73E8), RoundedCornerShape(12.dp))
+                            .clickable {
+                                com.example.util.VideoLauncher.launchGoogleMeet(context)
+                            }
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = "Google Meet",
+                            style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                            color = Color(0xFF1A73E8)
+                        )
+                    }
                 }
             }
         }
@@ -228,7 +270,7 @@ fun VideoCallScreen(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "FaceTime Video",
+                        text = "Video Call Preview",
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = Color.White
                     )
