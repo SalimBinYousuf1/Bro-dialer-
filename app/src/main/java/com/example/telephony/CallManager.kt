@@ -253,6 +253,9 @@ object CallManager {
             TelephonyCallState.DISCONNECTING, TelephonyCallState.DISCONNECTED -> {
                 IncomingCallNotificationHelper.stopRingtone()
                 IncomingCallNotificationHelper.dismissNotification(context)
+                if (CallRecorder.isRecording.value) {
+                    CallRecorder.stopRecording()
+                }
             }
             else -> {
                 IncomingCallNotificationHelper.stopRingtone()

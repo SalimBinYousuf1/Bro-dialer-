@@ -92,6 +92,17 @@ class CallActivity : ComponentActivity() {
             CallManager.currentCallInfo.collectLatest { callInfo ->
                 if (callInfo != null) {
                     hasHadActiveCall = true
+                    // Configure auto Picture-in-Picture on Android 12+ (S) when call is active
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        try {
+                            val pipParams = PictureInPictureParams.Builder()
+                                .setAspectRatio(Rational(9, 16))
+                                .setAutoEnterEnabled(callInfo.state == com.example.data.model.TelephonyCallState.ACTIVE)
+                                .build()
+                            setPictureInPictureParams(pipParams)
+                        } catch (_: Exception) {}
+                    }
+
                     // Standard dialer proximity sensor management: screen turns off when held to ear
                     if (callInfo.state == com.example.data.model.TelephonyCallState.ACTIVE && !callInfo.isSpeakerOn && !callInfo.isBluetoothOn) {
                         if (proximityWakeLock?.isHeld == false) {
